@@ -61,7 +61,28 @@ namespace RescueLink.Domain.Entities
                 EventDate = eventDate
             };
         }
+        public void Resolve()
+        {
+            if (Status != ReportStatus.Active)
+            {
+                throw new InvalidOperationException(
+                    "Only active reports can be resolved.");
+            }
 
+            Status = ReportStatus.Resolved;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        public void Cancel()
+        {
+            if (Status != ReportStatus.Active)
+            {
+                throw new InvalidOperationException(
+                    "Only active reports can be cancelled.");
+            }
+
+            Status = ReportStatus.Cancelled;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
         private static void ValidateCreation(
             Guid userId,
             ReportType reportType,
@@ -72,6 +93,7 @@ namespace RescueLink.Domain.Entities
             AnimalColor? secondaryColor,
             DateTimeOffset eventDate)
         {
+
             if (userId == Guid.Empty)
             {
                 throw new ArgumentException(
@@ -118,5 +140,6 @@ namespace RescueLink.Domain.Entities
                 ? null
                 : value.Trim();
         }
+       
     }
 }

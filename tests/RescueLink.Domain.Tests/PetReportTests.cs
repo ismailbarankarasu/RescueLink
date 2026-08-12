@@ -215,4 +215,110 @@ public class PetReportTests
         report.SecondaryColor.Should().Be(AnimalColor.White);
         report.EventDate.Should().Be(eventDate);
     }
+
+    [Fact]
+    public void Resolve_ShouldSetStatusToResolved_WhenReportIsActive()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        var beforeResolve = DateTimeOffset.UtcNow;
+
+        // Act
+        report.Resolve();
+
+        var afterResolve = DateTimeOffset.UtcNow;
+
+        // Assert
+        report.Status.Should().Be(ReportStatus.Resolved);
+
+        report.UpdatedAt.Should()
+            .NotBeNull()
+            .And.BeOnOrAfter(beforeResolve)
+            .And.BeOnOrBefore(afterResolve);
+    }
+
+    [Fact]
+    public void Resolve_ShouldThrowInvalidOperationException_WhenReportIsAlreadyResolved()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.Resolve();
+
+        // Act
+        Action act = report.Resolve;
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Only active reports can be resolved.");
+    }
+
+    private static PetReport CreateValidReport()
+    {
+        return PetReport.Create(
+            userId: Guid.NewGuid(),
+            reportType: ReportType.Lost,
+            title: "Kayıp kedi",
+            description: "Bursa Nilüfer bölgesinde kayboldu.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.Gray,
+            secondaryColor: AnimalColor.White,
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1));
+    }
+
+    [Fact]
+    public void Cancel_ShouldSetStatusToCancelled_WhenReportIsActive()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        var beforeCancel = DateTimeOffset.UtcNow;
+
+        // Act
+        report.Cancel();
+
+        var afterCancel = DateTimeOffset.UtcNow;
+
+        // Assert
+        report.Status.Should().Be(ReportStatus.Cancelled);
+
+        report.UpdatedAt.Should()
+            .NotBeNull()
+            .And.BeOnOrAfter(beforeCancel)
+            .And.BeOnOrBefore(afterCancel);
+    }
+
+    [Fact]
+    public void Cancel_ShouldThrowInvalidOperationException_WhenReportIsResolved()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.Resolve();
+
+        // Act
+        Action act = report.Cancel;
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Only active reports can be cancelled.");
+    }
+
+    [Fact]
+    public void Resolve_ShouldThrowInvalidOperationException_WhenReportIsCancelled()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.Cancel();
+
+        // Act
+        Action act = report.Resolve;
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Only active reports can be resolved.");
+    }
 }
