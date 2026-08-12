@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RescueLink.API/RescueLink.API.csproj" Id="789a9bad-a512-4d3d-8e2c-074bc90cd384" />
+    <Project Path="src/RescueLink.Application/RescueLink.Application.csproj" Id="82d84858-3cb3-4087-8682-b6981a7b3837" />
+    <Project Path="src/RescueLink.Domain/RescueLink.Domain.csproj" />
+    <Project Path="src/RescueLink.Infrastructure/RescueLink.Infrastructure.csproj" Id="f6af433c-e3d1-4064-b42e-61acbeab5c63" />
+    <Project Path="src/RescueLink.Persistence/RescueLink.Persistence.csproj" Id="2039f89c-27ad-41e4-bcff-ef7c23a887c7" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RescueLink.Application.Tests/RescueLink.Application.Tests.csproj" Id="71fd0715-0678-4a67-9c88-f6bdfaec2cd2" />
+    <Project Path="tests/RescueLink.Domain.Tests/RescueLink.Domain.Tests.csproj" Id="720d514e-d2a2-44e6-b381-954cc3e50dd3" />
+  </Folder>
+</Solution>
