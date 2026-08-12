@@ -18,36 +18,60 @@ namespace RescueLink.Domain.Entities
         public AnimalColor? SecondaryColor { get; private set; }
         public DateTimeOffset EventDate { get; private set; }
 
-        public static PetReport Create(
-
-         Guid userId,
-         ReportType reportType,
-         string title,
-         string description,
-         AnimalSpecies species,
-         AnimalGender gender,
-         string? petName,
-         string? breed,
-         AnimalColor primaryColor,
-         AnimalColor? secondaryColor,
-         DateTimeOffset eventDate)
+        private PetReport()
         {
-            var report = new PetReport
-            {
+        }
 
+        public static PetReport Create(
+            Guid userId,
+            ReportType reportType,
+            string title,
+            string description,
+            AnimalSpecies species,
+            AnimalGender gender,
+            string? petName,
+            string? breed,
+            AnimalColor primaryColor,
+            AnimalColor? secondaryColor,
+            DateTimeOffset eventDate)
+        {
+            ValidateCreation(
+                userId,
+                reportType,
+                title,
+                description,
+                species,
+                primaryColor,
+                secondaryColor,
+                eventDate);
+
+            return new PetReport
+            {
                 UserId = userId,
                 ReportType = reportType,
                 Status = ReportStatus.Active,
                 Title = title.Trim(),
-                Description = description,
+                Description = description.Trim(),
                 Species = species,
                 Gender = gender,
-                PetName = petName,
-                Breed = breed,
+                PetName = NormalizeOptionalText(petName),
+                Breed = NormalizeOptionalText(breed),
                 PrimaryColor = primaryColor,
                 SecondaryColor = secondaryColor,
                 EventDate = eventDate
             };
+        }
+
+        private static void ValidateCreation(
+            Guid userId,
+            ReportType reportType,
+            string title,
+            string description,
+            AnimalSpecies species,
+            AnimalColor primaryColor,
+            AnimalColor? secondaryColor,
+            DateTimeOffset eventDate)
+        {
             if (userId == Guid.Empty)
             {
                 throw new ArgumentException(
@@ -55,17 +79,44 @@ namespace RescueLink.Domain.Entities
                     nameof(userId));
             }
 
-            if (string.IsNullOrWhiteSpace(title))
+            ArgumentException.ThrowIfNullOrWhiteSpace(title);
+            ArgumentException.ThrowIfNullOrWhiteSpace(description);
+
+            if (!Enum.IsDefined(reportType))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(reportType),
+                    "Report type is invalid.");
+            }
+
+            if (!Enum.IsDefined(species))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(species),
+                    "Animal species is invalid.");
+            }
+
+            if (eventDate > DateTimeOffset.UtcNow)
             {
                 throw new ArgumentException(
-                    "Title cannot be empty.",
-                    nameof(title));
+                    "Event date cannot be in the future.",
+                    nameof(eventDate));
             }
-            return report;
-        }
-        private PetReport()
-        {
+
+            if (secondaryColor.HasValue &&
+                primaryColor == secondaryColor.Value)
+            {
+                throw new ArgumentException(
+                    "Primary and secondary colors cannot be the same.",
+                    nameof(secondaryColor));
+            }
         }
 
+        private static string? NormalizeOptionalText(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? null
+                : value.Trim();
+        }
     }
 }
