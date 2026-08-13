@@ -19,7 +19,10 @@ namespace RescueLink.Domain.Entities
         public AnimalColor? SecondaryColor { get; private set; }
         public DateTimeOffset EventDate { get; private set; }
         public GeoLocation Location { get; private set; } = null!;
-
+        private const int MaximumPhotoCount = 5;
+        private readonly List<PetReportPhoto> _photos = [];
+        public IReadOnlyCollection<PetReportPhoto> Photos =>
+    _photos.AsReadOnly();
         private PetReport()
         {
         }
@@ -88,6 +91,90 @@ namespace RescueLink.Domain.Entities
             }
 
             Status = ReportStatus.Cancelled;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        public void AddPhoto(string storageKey)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(storageKey);
+
+            var normalizedStorageKey = storageKey.Trim();
+
+            if (_photos.Count >= MaximumPhotoCount)
+            {
+                throw new InvalidOperationException(
+                    $"A report can contain at most {MaximumPhotoCount} photos.");
+            }
+
+            if (_photos.Any(photo =>
+                string.Equals(
+                    photo.StorageKey,
+                    normalizedStorageKey,
+                    StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException(
+                    "The same photo cannot be added more than once.");
+            }
+
+            var photo = PetReportPhoto.Create(
+                petReportId: Id,
+                storageKey: normalizedStorageKey,
+                isPrimary: _photos.Count == 0,
+                displayOrder: _photos.Count);
+
+            _photos.Add(photo);
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        public void SetPrimaryPhoto(Guid photoId)
+        {
+            var selectedPhoto = _photos.SingleOrDefault(
+                photo => photo.Id == photoId);
+
+            if (selectedPhoto is null)
+            {
+                throw new InvalidOperationException(
+                    "Photo does not belong to this report.");
+            }
+
+            foreach (var photo in _photos)
+            {
+                if (photo.Id == selectedPhoto.Id)
+                {
+                    photo.SetAsPrimary();
+                }
+                else
+                {
+                    photo.RemovePrimaryStatus();
+                }
+            }
+
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        public void RemovePhoto(Guid photoId)
+        {
+            var photoToRemove = _photos.SingleOrDefault(
+                photo => photo.Id == photoId);
+
+            if (photoToRemove is null)
+            {
+                throw new InvalidOperationException(
+                    "Photo does not belong to this report.");
+            }
+
+            var wasPrimary = photoToRemove.IsPrimary;
+
+            _photos.Remove(photoToRemove);
+
+            for (var index = 0; index < _photos.Count; index++)
+            {
+                _photos[index].UpdateDisplayOrder(index);
+            }
+
+            if (wasPrimary && _photos.Count > 0)
+            {
+                _photos[0].SetAsPrimary();
+            }
+
             UpdatedAt = DateTimeOffset.UtcNow;
         }
 

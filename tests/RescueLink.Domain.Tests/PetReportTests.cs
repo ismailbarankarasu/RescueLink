@@ -380,4 +380,228 @@ public class PetReportTests
             .Throw<ArgumentNullException>()
             .WithParameterName("location");
     }
+
+    [Fact]
+    public void AddPhoto_ShouldAddFirstPhotoAsPrimary()
+    {
+        // Arrange
+        var report = CreateValidReport();
+
+        // Act
+        report.AddPhoto("pet-reports/report-1/photo-1.webp");
+
+        // Assert
+        report.Photos.Should().ContainSingle();
+
+        var photo = report.Photos.Single();
+
+        photo.PetReportId.Should().Be(report.Id);
+        photo.StorageKey.Should()
+            .Be("pet-reports/report-1/photo-1.webp");
+        photo.IsPrimary.Should().BeTrue();
+        photo.DisplayOrder.Should().Be(0);
+        report.UpdatedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void AddPhoto_ShouldAddSecondPhotoAsNonPrimary()
+    {
+        // Arrange
+        var report = CreateValidReport();
+
+        // Act
+        report.AddPhoto("photo-1.webp");
+        report.AddPhoto("photo-2.webp");
+
+        // Assert
+        report.Photos.Should().HaveCount(2);
+
+        var secondPhoto = report.Photos.Single(
+            photo => photo.DisplayOrder == 1);
+
+        secondPhoto.IsPrimary.Should().BeFalse();
+        secondPhoto.StorageKey.Should().Be("photo-2.webp");
+    }
+
+    [Fact]
+    public void AddPhoto_ShouldThrowInvalidOperationException_WhenStorageKeyAlreadyExists()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.AddPhoto("pet-reports/photo-1.webp");
+
+        // Act
+        Action act = () =>
+            report.AddPhoto("PET-REPORTS/PHOTO-1.WEBP");
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage(
+                "The same photo cannot be added more than once.");
+
+        report.Photos.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void AddPhoto_ShouldThrowInvalidOperationException_WhenMaximumPhotoCountIsExceeded()
+    {
+        // Arrange
+        var report = CreateValidReport();
+
+        for (var index = 1; index <= 5; index++)
+        {
+            report.AddPhoto($"photo-{index}.webp");
+        }
+
+        // Act
+        Action act = () => report.AddPhoto("photo-6.webp");
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage(
+                "A report can contain at most 5 photos.");
+
+        report.Photos.Should().HaveCount(5);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddPhoto_ShouldThrowArgumentException_WhenStorageKeyIsEmpty(
+    string storageKey)
+    {
+        // Arrange
+        var report = CreateValidReport();
+
+        // Act
+        Action act = () => report.AddPhoto(storageKey);
+
+        // Assert
+        act.Should()
+            .Throw<ArgumentException>()
+            .WithParameterName("storageKey");
+
+        report.Photos.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SetPrimaryPhoto_ShouldChangePrimaryPhoto_WhenPhotoBelongsToReport()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.AddPhoto("photo-1.webp");
+        report.AddPhoto("photo-2.webp");
+
+        var secondPhotoId = report.Photos
+            .Single(photo => photo.DisplayOrder == 1)
+            .Id;
+
+        // Act
+        report.SetPrimaryPhoto(secondPhotoId);
+
+        // Assert
+        report.Photos.Single(photo => photo.Id == secondPhotoId)
+            .IsPrimary.Should().BeTrue();
+
+        report.Photos.Single(photo => photo.DisplayOrder == 0)
+            .IsPrimary.Should().BeFalse();
+
+        report.Photos.Count(photo => photo.IsPrimary)
+            .Should().Be(1);
+
+        report.UpdatedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void SetPrimaryPhoto_ShouldThrowInvalidOperationException_WhenPhotoDoesNotBelongToReport()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.AddPhoto("photo-1.webp");
+
+        // Act
+        Action act = () =>
+            report.SetPrimaryPhoto(Guid.NewGuid());
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Photo does not belong to this report.");
+
+        report.Photos.Single().IsPrimary.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RemovePhoto_ShouldRemovePhotoAndReorderRemainingPhotos()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.AddPhoto("photo-1.webp");
+        report.AddPhoto("photo-2.webp");
+        report.AddPhoto("photo-3.webp");
+
+        var secondPhotoId = report.Photos
+            .Single(photo => photo.DisplayOrder == 1)
+            .Id;
+
+        // Act
+        report.RemovePhoto(secondPhotoId);
+
+        // Assert
+        report.Photos.Should().HaveCount(2);
+
+        report.Photos
+            .OrderBy(photo => photo.DisplayOrder)
+            .Select(photo => photo.StorageKey)
+            .Should()
+            .Equal("photo-1.webp", "photo-3.webp");
+
+        report.Photos
+            .OrderBy(photo => photo.DisplayOrder)
+            .Select(photo => photo.DisplayOrder)
+            .Should()
+            .Equal(0, 1);
+    }
+
+    [Fact]
+    public void RemovePhoto_ShouldAssignNewPrimary_WhenPrimaryPhotoIsRemoved()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.AddPhoto("photo-1.webp");
+        report.AddPhoto("photo-2.webp");
+
+        var primaryPhotoId = report.Photos
+            .Single(photo => photo.IsPrimary)
+            .Id;
+
+        // Act
+        report.RemovePhoto(primaryPhotoId);
+
+        // Assert
+        report.Photos.Should().ContainSingle();
+        report.Photos.Single().IsPrimary.Should().BeTrue();
+        report.Photos.Single().DisplayOrder.Should().Be(0);
+    }
+
+    [Fact]
+    public void RemovePhoto_ShouldThrowInvalidOperationException_WhenPhotoDoesNotBelongToReport()
+    {
+        // Arrange
+        var report = CreateValidReport();
+        report.AddPhoto("photo-1.webp");
+
+        // Act
+        Action act = () =>
+            report.RemovePhoto(Guid.NewGuid());
+
+        // Assert
+        act.Should()
+            .Throw<InvalidOperationException>()
+            .WithMessage("Photo does not belong to this report.");
+
+        report.Photos.Should().ContainSingle();
+    }
 }
