@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
+using RescueLink.Domain.ValueObjects;
 
 namespace RescueLink.Domain.Tests.Entities;
 
@@ -24,7 +25,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: DateTimeOffset.UtcNow);
+            eventDate: DateTimeOffset.UtcNow,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -50,7 +52,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: DateTimeOffset.UtcNow);
+            eventDate: DateTimeOffset.UtcNow,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -72,7 +75,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: DateTimeOffset.UtcNow);
+            eventDate: DateTimeOffset.UtcNow,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -98,7 +102,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: futureEventDate);
+            eventDate: futureEventDate,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -121,7 +126,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: DateTimeOffset.UtcNow);
+            eventDate: DateTimeOffset.UtcNow,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -144,7 +150,8 @@ public class PetReportTests
             breed: null,
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: DateTimeOffset.UtcNow);
+            eventDate: DateTimeOffset.UtcNow,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -167,7 +174,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.Gray,
-            eventDate: DateTimeOffset.UtcNow);
+            eventDate: DateTimeOffset.UtcNow,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         act.Should()
@@ -194,7 +202,8 @@ public class PetReportTests
             breed: "  Tekir  ",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: eventDate);
+            eventDate: eventDate,
+            location: GeoLocation.Create(40.195, 29.060));
 
         // Assert
         report.Id.Should().NotBeEmpty();
@@ -266,7 +275,8 @@ public class PetReportTests
             breed: "Tekir",
             primaryColor: AnimalColor.Gray,
             secondaryColor: AnimalColor.White,
-            eventDate: DateTimeOffset.UtcNow.AddHours(-1));
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1),
+            location: GeoLocation.Create(40.195, 29.060));
     }
 
     [Fact]
@@ -320,5 +330,54 @@ public class PetReportTests
         act.Should()
             .Throw<InvalidOperationException>()
             .WithMessage("Only active reports can be resolved.");
+    }
+
+    [Fact]
+    public void Create_ShouldAssignLocation_WhenLocationIsValid()
+    {
+        // Arrange
+        var location = GeoLocation.Create(40.195, 29.060);
+
+        // Act
+        var report = PetReport.Create(
+            userId: Guid.NewGuid(),
+            reportType: ReportType.Lost,
+            title: "Kayıp kedi",
+            description: "Bursa Nilüfer bölgesinde kayboldu.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.Gray,
+            secondaryColor: AnimalColor.White,
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1),
+            location: location);
+
+        // Assert
+        report.Location.Should().Be(location);
+    }
+
+    [Fact]
+    public void Create_ShouldThrowArgumentNullException_WhenLocationIsNull()
+    {
+        // Act
+        Action act = () => PetReport.Create(
+            userId: Guid.NewGuid(),
+            reportType: ReportType.Lost,
+            title: "Kayıp kedi",
+            description: "Bursa Nilüfer bölgesinde kayboldu.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.Gray,
+            secondaryColor: AnimalColor.White,
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1),
+            location: null!);
+
+        // Assert
+        act.Should()
+            .Throw<ArgumentNullException>()
+            .WithParameterName("location");
     }
 }

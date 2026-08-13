@@ -1,5 +1,6 @@
 ﻿using RescueLink.Domain.Common;
 using RescueLink.Domain.Enums;
+using RescueLink.Domain.ValueObjects;
 
 namespace RescueLink.Domain.Entities
 {
@@ -17,6 +18,7 @@ namespace RescueLink.Domain.Entities
         public AnimalColor PrimaryColor { get; private set; }
         public AnimalColor? SecondaryColor { get; private set; }
         public DateTimeOffset EventDate { get; private set; }
+        public GeoLocation Location { get; private set; } = null!;
 
         private PetReport()
         {
@@ -33,7 +35,8 @@ namespace RescueLink.Domain.Entities
             string? breed,
             AnimalColor primaryColor,
             AnimalColor? secondaryColor,
-            DateTimeOffset eventDate)
+            DateTimeOffset eventDate,
+            GeoLocation location)
         {
             ValidateCreation(
                 userId,
@@ -43,7 +46,8 @@ namespace RescueLink.Domain.Entities
                 species,
                 primaryColor,
                 secondaryColor,
-                eventDate);
+                eventDate,
+                location);
 
             return new PetReport
             {
@@ -58,9 +62,11 @@ namespace RescueLink.Domain.Entities
                 Breed = NormalizeOptionalText(breed),
                 PrimaryColor = primaryColor,
                 SecondaryColor = secondaryColor,
-                EventDate = eventDate
+                EventDate = eventDate,
+                Location = location
             };
         }
+
         public void Resolve()
         {
             if (Status != ReportStatus.Active)
@@ -72,6 +78,7 @@ namespace RescueLink.Domain.Entities
             Status = ReportStatus.Resolved;
             UpdatedAt = DateTimeOffset.UtcNow;
         }
+
         public void Cancel()
         {
             if (Status != ReportStatus.Active)
@@ -83,6 +90,7 @@ namespace RescueLink.Domain.Entities
             Status = ReportStatus.Cancelled;
             UpdatedAt = DateTimeOffset.UtcNow;
         }
+
         private static void ValidateCreation(
             Guid userId,
             ReportType reportType,
@@ -91,9 +99,9 @@ namespace RescueLink.Domain.Entities
             AnimalSpecies species,
             AnimalColor primaryColor,
             AnimalColor? secondaryColor,
-            DateTimeOffset eventDate)
+            DateTimeOffset eventDate,
+            GeoLocation location)
         {
-
             if (userId == Guid.Empty)
             {
                 throw new ArgumentException(
@@ -103,6 +111,7 @@ namespace RescueLink.Domain.Entities
 
             ArgumentException.ThrowIfNullOrWhiteSpace(title);
             ArgumentException.ThrowIfNullOrWhiteSpace(description);
+            ArgumentNullException.ThrowIfNull(location);
 
             if (!Enum.IsDefined(reportType))
             {
@@ -140,6 +149,5 @@ namespace RescueLink.Domain.Entities
                 ? null
                 : value.Trim();
         }
-       
     }
 }
