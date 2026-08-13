@@ -1,7 +1,19 @@
+using RescueLink.Application;
+using RescueLink.Persistence;
+using RescueLink.API.Services;
+using RescueLink.Application.Abstractions.Authentication;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddHttpContextAccessor();
 
+builder.Services.AddScoped<
+    ICurrentUserService,
+    CurrentUserService>();
+builder.Services.AddApplication();
+
+builder.Services.AddPersistence(
+    builder.Configuration);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
