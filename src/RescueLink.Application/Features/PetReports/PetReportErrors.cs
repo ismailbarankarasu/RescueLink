@@ -28,4 +28,11 @@ public static class PetReportErrors
     public static readonly Error InvalidPhotoFile = new(
     "PetReport.InvalidPhotoFile",
     "The uploaded file is not a valid JPEG, PNG or WebP image.");
+
+    public static Error PhotoNotFound(Guid photoId)
+    {
+        return new Error(
+            "PetReport.PhotoNotFound",
+            $"Photo '{photoId}' was not found in this pet report.");
+    }
 }

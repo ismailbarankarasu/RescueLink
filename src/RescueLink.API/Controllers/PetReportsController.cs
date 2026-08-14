@@ -8,6 +8,8 @@ using RescueLink.Application.Features.PetReports.GetById;
 using RescueLink.Application.Features.PetReports.Nearby;
 using RescueLink.Application.Features.PetReports.Photos.Upload;
 using RescueLink.Domain.Enums;
+using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
+using RescueLink.Application.Features.PetReports.Photos.Delete;
 
 namespace RescueLink.API.Controllers;
 
@@ -192,6 +194,96 @@ public sealed class PetReportsController : ControllerBase
             ".webp" => "image/webp",
 
             _ => file.ContentType
+        };
+    }
+
+    [HttpPatch("{reportId:guid}/photos/{photoId:guid}/primary")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetPrimaryPhoto(
+    Guid reportId,
+    Guid photoId,
+    CancellationToken cancellationToken)
+    {
+        var command = new SetPrimaryPetReportPhotoCommand(
+            PetReportId: reportId,
+            PhotoId: photoId);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(),
+
+            "PetReport.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReport.NotFound" =>
+                NotFound(result.Error),
+
+            "PetReport.PhotoNotFound" =>
+                NotFound(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
+    }
+
+    [HttpDelete("{reportId:guid}/photos/{photoId:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePhoto(
+    Guid reportId,
+    Guid photoId,
+    CancellationToken cancellationToken)
+    {
+        var command = new DeletePetReportPhotoCommand(
+            PetReportId: reportId,
+            PhotoId: photoId);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(),
+
+            "PetReport.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReport.NotFound" =>
+                NotFound(result.Error),
+
+            "PetReport.PhotoNotFound" =>
+                NotFound(result.Error),
+
+            _ => BadRequest(result.Error)
         };
     }
 }
