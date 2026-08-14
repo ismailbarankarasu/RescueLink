@@ -15,4 +15,7 @@ public interface IPetReportRepository
     Task<bool> ExistsAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+    Task<PetReport?> GetByIdReadOnlyAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

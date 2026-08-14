@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RescueLink.Application.Features.PetReports;
 using RescueLink.Application.Features.PetReports.Create;
+using RescueLink.Application.Features.PetReports.GetById;
 
 namespace RescueLink.API.Controllers;
 
@@ -46,11 +47,39 @@ public sealed class PetReportsController : ControllerBase
             });
         }
 
-        return StatusCode(
-            StatusCodes.Status201Created,
-            new
+        return CreatedAtRoute(
+            routeName: "GetPetReportById",
+            routeValues: new
+            {
+                id = result.Value
+            },
+            value: new
             {
                 PetReportId = result.Value
             });
+    }
+
+    [HttpGet("{id:guid}", Name = "GetPetReportById")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetById(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        var query = new GetPetReportByIdQuery(id);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return NotFound(new
+            {
+                result.Error.Code,
+                result.Error.Message
+            });
+        }
+
+        return Ok(result.Value);
     }
 }

@@ -46,4 +46,16 @@ public sealed class PetReportRepository
                 report => report.Id == id,
                 cancellationToken);
     }
+
+    public async Task<PetReport?> GetByIdReadOnlyAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.PetReports
+            .AsNoTracking()
+            .Include(report => report.Photos)
+            .SingleOrDefaultAsync(
+                report => report.Id == id,
+                cancellationToken);
+    }
 }
