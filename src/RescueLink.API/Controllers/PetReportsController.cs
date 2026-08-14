@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using RescueLink.Application.Features.PetReports;
 using RescueLink.Application.Features.PetReports.Create;
 using RescueLink.Application.Features.PetReports.GetById;
+using RescueLink.Application.Features.PetReports.Nearby;
+using RescueLink.Domain.Enums;
 
 namespace RescueLink.API.Controllers;
 
@@ -79,6 +81,38 @@ public sealed class PetReportsController : ControllerBase
                 result.Error.Message
             });
         }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("nearby")]
+    [AllowAnonymous]
+    [ProducesResponseType(
+    typeof(IReadOnlyCollection<NearbyPetReportResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(
+    StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<
+    IReadOnlyCollection<NearbyPetReportResponse>>> GetNearby(
+        [FromQuery] double latitude,
+        [FromQuery] double longitude,
+        [FromQuery] double radiusMeters = 5_000,
+        [FromQuery] ReportType? reportType = null,
+        [FromQuery] AnimalSpecies? species = null,
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetNearbyPetReportsQuery(
+            Latitude: latitude,
+            Longitude: longitude,
+            RadiusMeters: radiusMeters,
+            ReportType: reportType,
+            Species: species,
+            Limit: limit);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
 
         return Ok(result.Value);
     }

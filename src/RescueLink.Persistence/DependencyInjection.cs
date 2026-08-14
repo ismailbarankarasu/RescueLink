@@ -1,13 +1,15 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using RescueLink.Application.Abstractions.Authentication;
+using RescueLink.Application.Abstractions.Data;
 using RescueLink.Application.Abstractions.Persistence;
 using RescueLink.Persistence.Context;
-using RescueLink.Persistence.Repositories;
-using Microsoft.AspNetCore.Identity;
+using RescueLink.Persistence.Data;
 using RescueLink.Persistence.Identity;
-using RescueLink.Application.Abstractions.Authentication;
-
+using RescueLink.Persistence.Queries;
+using RescueLink.Persistence.Repositories;
 namespace RescueLink.Persistence;
 
 public static class DependencyInjection
@@ -17,13 +19,18 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString(
-            "DefaultConnection");
+            "DefaultConnection") ?? throw new InvalidOperationException(
+                "Database connection string was not found."); 
 
         services.AddDbContext<RescueLinkDbContext>(options =>
             options.UseSqlServer(
                 connectionString,
                 sqlServerOptions =>
                     sqlServerOptions.UseNetTopologySuite()));
+
+        services.AddSingleton<IDbConnectionFactory>(
+            _ => new SqlConnectionFactory(connectionString));
+
         services.AddIdentityCore<ApplicationUser>(options =>
         {
             options.User.RequireUniqueEmail = true;
@@ -41,6 +48,7 @@ public static class DependencyInjection
         .AddRoles<IdentityRole<Guid>>()
         .AddEntityFrameworkStores<RescueLinkDbContext>();
 
+        services.AddScoped<IPetReportReadService, PetReportReadService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IPetReportRepository, PetReportRepository>();
 
