@@ -9,16 +9,6 @@ internal sealed class LocalFileStorageService(
 {
     private const long MaximumFileSize = 5 * 1024 * 1024;
 
-    private static readonly IReadOnlyDictionary<string, string>
-        AllowedContentTypes =
-            new Dictionary<string, string>(
-                StringComparer.OrdinalIgnoreCase)
-            {
-                ["image/jpeg"] = ".jpg",
-                ["image/png"] = ".png",
-                ["image/webp"] = ".webp"
-            };
-
     public async Task<string> UploadAsync(
         FileUpload file,
         CancellationToken cancellationToken)
@@ -46,12 +36,20 @@ internal sealed class LocalFileStorageService(
                 nameof(file));
         }
 
-        if (!AllowedContentTypes.TryGetValue(
-                file.ContentType,
-                out var extension))
+        var header = new byte[12];
+
+        var headerLength = await ReadHeaderAsync(
+            file.Content,
+            header,
+            cancellationToken);
+
+        var extension = DetectImageExtension(
+            header.AsSpan(0, headerLength));
+
+        if (extension is null)
         {
             throw new ArgumentException(
-                "Only JPEG, PNG and WebP images are allowed.",
+                "The uploaded file is not a valid JPEG, PNG or WebP image.",
                 nameof(file));
         }
 
@@ -61,18 +59,13 @@ internal sealed class LocalFileStorageService(
                 $"{Guid.NewGuid():N}{extension}")
             .Replace('\\', '/');
 
-        var webRootPath = environment.WebRootPath;
-
-        if (string.IsNullOrWhiteSpace(webRootPath))
-        {
-            webRootPath = Path.Combine(
-                environment.ContentRootPath,
-                "wwwroot");
-        }
+        var webRootPath = GetWebRootPath();
 
         var absolutePath = Path.Combine(
             webRootPath,
-            storageKey.Replace('/', Path.DirectorySeparatorChar));
+            storageKey.Replace(
+                '/',
+                Path.DirectorySeparatorChar));
 
         var directoryPath = Path.GetDirectoryName(absolutePath)
             ?? throw new InvalidOperationException(
@@ -90,6 +83,10 @@ internal sealed class LocalFileStorageService(
                 bufferSize: 81920,
                 useAsync: true);
 
+            await destination.WriteAsync(
+                header.AsMemory(0, headerLength),
+                cancellationToken);
+ 
             await file.Content.CopyToAsync(
                 destination,
                 cancellationToken);
@@ -115,15 +112,7 @@ internal sealed class LocalFileStorageService(
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var webRootPath = environment.WebRootPath;
-
-        if (string.IsNullOrWhiteSpace(webRootPath))
-        {
-            webRootPath = Path.Combine(
-                environment.ContentRootPath,
-                "wwwroot");
-        }
-
+        var webRootPath = GetWebRootPath();
         var normalizedWebRoot = Path.GetFullPath(webRootPath);
 
         var absolutePath = Path.GetFullPath(
@@ -153,5 +142,86 @@ internal sealed class LocalFileStorageService(
         }
 
         return Task.CompletedTask;
+    }
+
+    private string GetWebRootPath()
+    {
+        if (!string.IsNullOrWhiteSpace(environment.WebRootPath))
+        {
+            return environment.WebRootPath;
+        }
+
+        return Path.Combine(
+            environment.ContentRootPath,
+            "wwwroot");
+    }
+
+    private static async Task<int> ReadHeaderAsync(
+        Stream content,
+        byte[] header,
+        CancellationToken cancellationToken)
+    {
+        var totalBytesRead = 0;
+
+        while (totalBytesRead < header.Length)
+        {
+            var bytesRead = await content.ReadAsync(
+                header.AsMemory(
+                    totalBytesRead,
+                    header.Length - totalBytesRead),
+                cancellationToken);
+
+            if (bytesRead == 0)
+            {
+                break;
+            }
+
+            totalBytesRead += bytesRead;
+        }
+
+        return totalBytesRead;
+    }
+
+    private static string? DetectImageExtension(
+        ReadOnlySpan<byte> header)
+    {
+        // JPEG: FF D8 FF
+        if (header.Length >= 3 &&
+            header[0] == 0xFF &&
+            header[1] == 0xD8 &&
+            header[2] == 0xFF)
+        {
+            return ".jpg";
+        }
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (header.Length >= 8 &&
+            header[0] == 0x89 &&
+            header[1] == 0x50 &&
+            header[2] == 0x4E &&
+            header[3] == 0x47 &&
+            header[4] == 0x0D &&
+            header[5] == 0x0A &&
+            header[6] == 0x1A &&
+            header[7] == 0x0A)
+        {
+            return ".png";
+        }
+
+        // WebP: RIFF....WEBP
+        if (header.Length >= 12 &&
+            header[0] == 0x52 &&
+            header[1] == 0x49 &&
+            header[2] == 0x46 &&
+            header[3] == 0x46 &&
+            header[8] == 0x57 &&
+            header[9] == 0x45 &&
+            header[10] == 0x42 &&
+            header[11] == 0x50)
+        {
+            return ".webp";
+        }
+
+        return null;
     }
 }

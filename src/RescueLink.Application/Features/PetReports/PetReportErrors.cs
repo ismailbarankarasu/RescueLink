@@ -24,4 +24,8 @@ public static class PetReportErrors
          "PetReport.MaximumPhotoCountReached",
          $"A pet report can contain at most " +
          $"{PetReport.MaximumPhotoCount} photos.");
+
+    public static readonly Error InvalidPhotoFile = new(
+    "PetReport.InvalidPhotoFile",
+    "The uploaded file is not a valid JPEG, PNG or WebP image.");
 }

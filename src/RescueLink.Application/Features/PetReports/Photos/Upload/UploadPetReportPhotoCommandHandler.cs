@@ -59,14 +59,24 @@ public sealed class UploadPetReportPhotoCommandHandler
         }
 
         var file = new FileUpload(
-            Content: request.Content,
-            FileName: request.FileName,
-            ContentType: request.ContentType,
-            Length: request.Length);
+        Content: request.Content,
+        FileName: request.FileName,
+        ContentType: request.ContentType,
+        Length: request.Length);
 
-        var storageKey = await _fileStorageService.UploadAsync(
-            file,
-            cancellationToken);
+        string storageKey;
+
+        try
+        {
+            storageKey = await _fileStorageService.UploadAsync(
+                file,
+                cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            return Result.Failure<Guid>(
+                PetReportErrors.InvalidPhotoFile);
+        }
 
         try
         {

@@ -166,6 +166,9 @@ public sealed class PetReportsController : ControllerBase
             "PetReport.NotFound" =>
                 NotFound(result.Error),
 
+            "PetReport.InvalidPhotoFile" =>
+                BadRequest(result.Error),
+
             "PetReport.MaximumPhotoCountReached" =>
                 BadRequest(result.Error),
 
