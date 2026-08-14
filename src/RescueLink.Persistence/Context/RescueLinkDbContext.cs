@@ -1,11 +1,18 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RescueLink.Application.Abstractions.Persistence;
 using RescueLink.Domain.Entities;
+using RescueLink.Persistence.Identity;
 
 namespace RescueLink.Persistence.Context;
 
 public sealed class RescueLinkDbContext
-    : DbContext, IUnitOfWork
+    : IdentityDbContext<
+        ApplicationUser,
+        IdentityRole<Guid>,
+        Guid>,
+      IUnitOfWork
 {
     public RescueLinkDbContext(
         DbContextOptions<RescueLinkDbContext> options)

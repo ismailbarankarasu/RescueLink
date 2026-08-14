@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using RescueLink.Domain.Entities;
 using RescueLink.Persistence.Converters;
+using RescueLink.Persistence.Identity;
 
 namespace RescueLink.Persistence.Configurations;
 
@@ -10,6 +11,7 @@ public sealed class PetReportConfiguration
 {
     public void Configure(EntityTypeBuilder<PetReport> builder)
     {
+
         builder.ToTable("PetReports");
 
         builder.HasKey(report => report.Id);
@@ -68,6 +70,11 @@ public sealed class PetReportConfiguration
             .WithOne()
             .HasForeignKey(photo => photo.PetReportId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(report => report.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Navigation(report => report.Photos)
             .HasField("_photos")
