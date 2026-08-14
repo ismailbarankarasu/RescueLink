@@ -457,7 +457,7 @@ This keeps matching **explainable**: users see not only a score, but why the sys
 ### Clone and run
 
 ```bash
-git clone https://github.com/your-org/RescueLink.git
+git clone https://github.com/ismailbarankarasu/RescueLink.git
 cd RescueLink
 
 dotnet restore
