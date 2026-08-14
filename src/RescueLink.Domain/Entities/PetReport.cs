@@ -19,7 +19,9 @@ namespace RescueLink.Domain.Entities
         public AnimalColor? SecondaryColor { get; private set; }
         public DateTimeOffset EventDate { get; private set; }
         public GeoLocation Location { get; private set; } = null!;
-        private const int MaximumPhotoCount = 5;
+        public const int MaximumPhotoCount = 5;
+
+        public bool CanAddPhoto => _photos.Count < MaximumPhotoCount;
         private readonly List<PetReportPhoto> _photos = [];
         public IReadOnlyCollection<PetReportPhoto> Photos =>
     _photos.AsReadOnly();

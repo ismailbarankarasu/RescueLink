@@ -1,4 +1,5 @@
 ﻿using RescueLink.Application.Common.Results;
+using RescueLink.Domain.Entities;
 
 namespace RescueLink.Application.Features.PetReports;
 
@@ -14,4 +15,13 @@ public static class PetReportErrors
             "PetReport.NotFound",
             $"Pet report '{reportId}' was not found.");
     }
+
+    public static readonly Error Forbidden = new(
+         "PetReport.Forbidden",
+         "You are not allowed to modify this pet report.");
+
+    public static readonly Error MaximumPhotoCountReached = new(
+         "PetReport.MaximumPhotoCountReached",
+         $"A pet report can contain at most " +
+         $"{PetReport.MaximumPhotoCount} photos.");
 }

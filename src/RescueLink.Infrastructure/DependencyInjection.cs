@@ -6,6 +6,8 @@ using RescueLink.Application.Abstractions.Authentication;
 using RescueLink.Infrastructure.Authentication;
 using System.Security.Claims;
 using System.Text;
+using RescueLink.Application.Abstractions.Storage;
+using RescueLink.Infrastructure.Storage;
 
 namespace RescueLink.Infrastructure;
 
@@ -77,7 +79,7 @@ public static class DependencyInjection
                             ClaimTypes.Role
                     };
             });
-
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddAuthorization();
 
         return services;
