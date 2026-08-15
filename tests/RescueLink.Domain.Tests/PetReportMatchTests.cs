@@ -23,6 +23,9 @@ public sealed class PetReportMatchTests
         match.Score.Should().Be(85);
         match.DistanceMeters.Should().Be(1250);
         match.Status.Should().Be(MatchStatus.Suggested);
+
+        match.LostOwnerConfirmed.Should().BeFalse();
+        match.FoundOwnerConfirmed.Should().BeFalse();
     }
 
     [Fact]
@@ -99,22 +102,79 @@ public sealed class PetReportMatchTests
     }
 
     [Fact]
-    public void Confirm_ShouldChangeStatusToConfirmed()
+    public void Confirm_ShouldConfirmLostOwnerOnly()
     {
         var match = CreateSuggestedMatch();
 
-        match.Confirm();
+        match.Confirm(match.LostReportId);
+
+        match.LostOwnerConfirmed.Should().BeTrue();
+        match.FoundOwnerConfirmed.Should().BeFalse();
+
+        match.Status.Should().Be(MatchStatus.Suggested);
+    }
+
+    [Fact]
+    public void Confirm_ShouldConfirmFoundOwnerOnly()
+    {
+        var match = CreateSuggestedMatch();
+
+        match.Confirm(match.FoundReportId);
+
+        match.LostOwnerConfirmed.Should().BeFalse();
+        match.FoundOwnerConfirmed.Should().BeTrue();
+
+        match.Status.Should().Be(MatchStatus.Suggested);
+    }
+
+    [Fact]
+    public void Confirm_ShouldChangeStatusToConfirmed_WhenBothOwnersConfirm()
+    {
+        var match = CreateSuggestedMatch();
+
+        match.Confirm(match.LostReportId);
+        match.Confirm(match.FoundReportId);
+
+        match.LostOwnerConfirmed.Should().BeTrue();
+        match.FoundOwnerConfirmed.Should().BeTrue();
 
         match.Status.Should().Be(MatchStatus.Confirmed);
     }
 
     [Fact]
-    public void Confirm_ShouldThrow_WhenMatchIsNotSuggested()
+    public void Confirm_ShouldBeIdempotent_WhenSameOwnerConfirmsTwice()
     {
         var match = CreateSuggestedMatch();
-        match.Reject();
 
-        var action = match.Confirm;
+        match.Confirm(match.LostReportId);
+        match.Confirm(match.LostReportId);
+
+        match.LostOwnerConfirmed.Should().BeTrue();
+        match.FoundOwnerConfirmed.Should().BeFalse();
+
+        match.Status.Should().Be(MatchStatus.Suggested);
+    }
+
+    [Fact]
+    public void Confirm_ShouldThrow_WhenReportDoesNotBelongToMatch()
+    {
+        var match = CreateSuggestedMatch();
+
+        var action = () => match.Confirm(Guid.NewGuid());
+
+        action.Should()
+            .Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Confirm_ShouldThrow_WhenMatchIsRejected()
+    {
+        var match = CreateSuggestedMatch();
+
+        match.Reject(match.LostReportId);
+
+        var action = () =>
+            match.Confirm(match.FoundReportId);
 
         action.Should()
             .Throw<InvalidOperationException>();
@@ -125,18 +185,45 @@ public sealed class PetReportMatchTests
     {
         var match = CreateSuggestedMatch();
 
-        match.Reject();
+        match.Reject(match.LostReportId);
 
         match.Status.Should().Be(MatchStatus.Rejected);
     }
 
     [Fact]
-    public void Reject_ShouldThrow_WhenMatchIsNotSuggested()
+    public void Reject_ShouldWork_WhenOneOwnerPreviouslyConfirmed()
     {
         var match = CreateSuggestedMatch();
-        match.Confirm();
 
-        var action = match.Reject;
+        match.Confirm(match.LostReportId);
+        match.Reject(match.FoundReportId);
+
+        match.LostOwnerConfirmed.Should().BeTrue();
+        match.FoundOwnerConfirmed.Should().BeFalse();
+        match.Status.Should().Be(MatchStatus.Rejected);
+    }
+
+    [Fact]
+    public void Reject_ShouldThrow_WhenReportDoesNotBelongToMatch()
+    {
+        var match = CreateSuggestedMatch();
+
+        var action = () => match.Reject(Guid.NewGuid());
+
+        action.Should()
+            .Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Reject_ShouldThrow_WhenMatchIsConfirmed()
+    {
+        var match = CreateSuggestedMatch();
+
+        match.Confirm(match.LostReportId);
+        match.Confirm(match.FoundReportId);
+
+        var action = () =>
+            match.Reject(match.LostReportId);
 
         action.Should()
             .Throw<InvalidOperationException>();

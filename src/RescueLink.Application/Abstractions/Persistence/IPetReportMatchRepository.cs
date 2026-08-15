@@ -14,4 +14,7 @@ public interface IPetReportMatchRepository
         ReportType sourceReportType,
         IReadOnlyCollection<Guid> candidateReportIds,
         CancellationToken cancellationToken = default);
+    Task<PetReportMatch?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

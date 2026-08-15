@@ -63,4 +63,13 @@ internal sealed class PetReportMatchRepository(
 
         return existingIds.ToHashSet();
     }
+    public async Task<PetReportMatch?> GetByIdAsync(
+    Guid id,
+    CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PetReportMatches
+            .SingleOrDefaultAsync(
+                match => match.Id == id,
+                cancellationToken);
+    }
 }

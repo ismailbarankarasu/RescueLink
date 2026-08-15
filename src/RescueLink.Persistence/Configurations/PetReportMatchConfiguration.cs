@@ -24,6 +24,14 @@ internal sealed class PetReportMatchConfiguration
             .HasConversion<int>()
             .IsRequired();
 
+        builder.Property(match => match.LostOwnerConfirmed)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(match => match.FoundOwnerConfirmed)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.HasIndex(match => new
         {
             match.LostReportId,

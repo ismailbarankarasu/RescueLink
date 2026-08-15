@@ -11,6 +11,9 @@ public sealed class PetReportMatch : BaseEntity
     public double DistanceMeters { get; private set; }
     public MatchStatus Status { get; private set; }
 
+    public bool LostOwnerConfirmed { get; private set; }
+    public bool FoundOwnerConfirmed { get; private set; }
+
     private PetReportMatch()
     {
     }
@@ -61,24 +64,55 @@ public sealed class PetReportMatch : BaseEntity
             FoundReportId = foundReportId,
             Score = score,
             DistanceMeters = distanceMeters,
-            Status = MatchStatus.Suggested
+            Status = MatchStatus.Suggested,
+            LostOwnerConfirmed = false,
+            FoundOwnerConfirmed = false
         };
     }
 
-    public void Confirm()
+    public void Confirm(Guid petReportId)
     {
+        EnsureReportBelongsToMatch(petReportId);
+
         if (Status != MatchStatus.Suggested)
         {
             throw new InvalidOperationException(
                 "Only suggested matches can be confirmed.");
         }
 
-        Status = MatchStatus.Confirmed;
+        var confirmationChanged = false;
+
+        if (petReportId == LostReportId &&
+            !LostOwnerConfirmed)
+        {
+            LostOwnerConfirmed = true;
+            confirmationChanged = true;
+        }
+
+        if (petReportId == FoundReportId &&
+            !FoundOwnerConfirmed)
+        {
+            FoundOwnerConfirmed = true;
+            confirmationChanged = true;
+        }
+
+        if (!confirmationChanged)
+        {
+            return;
+        }
+
+        if (LostOwnerConfirmed && FoundOwnerConfirmed)
+        {
+            Status = MatchStatus.Confirmed;
+        }
+
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public void Reject()
+    public void Reject(Guid petReportId)
     {
+        EnsureReportBelongsToMatch(petReportId);
+
         if (Status != MatchStatus.Suggested)
         {
             throw new InvalidOperationException(
@@ -87,5 +121,22 @@ public sealed class PetReportMatch : BaseEntity
 
         Status = MatchStatus.Rejected;
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    private void EnsureReportBelongsToMatch(Guid petReportId)
+    {
+        if (petReportId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Pet report ID cannot be empty.",
+                nameof(petReportId));
+        }
+
+        if (petReportId != LostReportId &&
+            petReportId != FoundReportId)
+        {
+            throw new InvalidOperationException(
+                "Pet report does not belong to this match.");
+        }
     }
 }
