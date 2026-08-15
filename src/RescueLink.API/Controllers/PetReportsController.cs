@@ -10,6 +10,7 @@ using RescueLink.Application.Features.PetReports.Photos.Upload;
 using RescueLink.Domain.Enums;
 using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
 using RescueLink.Application.Features.PetReports.Photos.Delete;
+using RescueLink.Application.Features.PetReports.Resolve;
 
 namespace RescueLink.API.Controllers;
 
@@ -282,6 +283,49 @@ public sealed class PetReportsController : ControllerBase
 
             "PetReport.PhotoNotFound" =>
                 NotFound(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
+    }
+
+    [HttpPatch("{id:guid}/resolve")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Resolve(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        var command = new ResolvePetReportCommand(id);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(),
+
+            "PetReport.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReport.NotFound" =>
+                NotFound(result.Error),
+
+            "PetReport.NotActive" =>
+                Conflict(result.Error),
 
             _ => BadRequest(result.Error)
         };

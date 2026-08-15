@@ -35,4 +35,8 @@ public static class PetReportErrors
             "PetReport.PhotoNotFound",
             $"Photo '{photoId}' was not found in this pet report.");
     }
+
+    public static readonly Error ReportIsNotActive = new(
+        "PetReport.NotActive",
+        "Only active pet reports can be modified.");
 }
