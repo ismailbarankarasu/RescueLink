@@ -3,14 +3,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RescueLink.API.Contracts.PetReports;
 using RescueLink.Application.Features.PetReports;
+using RescueLink.Application.Features.PetReports.Cancel;
 using RescueLink.Application.Features.PetReports.Create;
 using RescueLink.Application.Features.PetReports.GetById;
 using RescueLink.Application.Features.PetReports.Nearby;
-using RescueLink.Application.Features.PetReports.Photos.Upload;
-using RescueLink.Domain.Enums;
-using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
 using RescueLink.Application.Features.PetReports.Photos.Delete;
+using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
+using RescueLink.Application.Features.PetReports.Photos.Upload;
 using RescueLink.Application.Features.PetReports.Resolve;
+using RescueLink.Domain.Enums;
 
 namespace RescueLink.API.Controllers;
 
@@ -301,6 +302,49 @@ public sealed class PetReportsController : ControllerBase
     CancellationToken cancellationToken)
     {
         var command = new ResolvePetReportCommand(id);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(),
+
+            "PetReport.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReport.NotFound" =>
+                NotFound(result.Error),
+
+            "PetReport.NotActive" =>
+                Conflict(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
+    }
+
+    [HttpPatch("{id:guid}/cancel")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Cancel(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        var command = new CancelPetReportCommand(id);
 
         var result = await _sender.Send(
             command,
