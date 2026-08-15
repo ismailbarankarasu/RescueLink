@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using RescueLink.Application.Common.Behaviors;
 using System.Reflection;
+using RescueLink.Application.Abstractions.Messaging;
+using RescueLink.Application.Common.Events;
 
 namespace RescueLink.Application;
 
@@ -20,6 +22,10 @@ public static class DependencyInjection
             configuration.AddOpenBehavior(
                 typeof(ValidationBehavior<,>));
         });
+        services.AddScoped<
+            IDomainEventDispatcher,
+            MediatRDomainEventDispatcher>();
+
 
         services.AddValidatorsFromAssembly(assembly);
 

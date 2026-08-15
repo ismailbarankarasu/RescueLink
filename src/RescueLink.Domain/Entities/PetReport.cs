@@ -1,6 +1,7 @@
 ﻿using RescueLink.Domain.Common;
 using RescueLink.Domain.Enums;
 using RescueLink.Domain.ValueObjects;
+using RescueLink.Domain.Events;
 
 namespace RescueLink.Domain.Entities
 {
@@ -54,7 +55,7 @@ namespace RescueLink.Domain.Entities
                 eventDate,
                 location);
 
-            return new PetReport
+            var petReport = new PetReport
             {
                 UserId = userId,
                 ReportType = reportType,
@@ -70,6 +71,11 @@ namespace RescueLink.Domain.Entities
                 EventDate = eventDate,
                 Location = location
             };
+
+            petReport.RaiseDomainEvent(
+                new PetReportCreatedDomainEvent(petReport.Id));
+
+            return petReport;
         }
 
         public void Resolve()

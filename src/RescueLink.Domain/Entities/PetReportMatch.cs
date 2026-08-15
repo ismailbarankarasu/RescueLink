@@ -1,0 +1,91 @@
+﻿using RescueLink.Domain.Common;
+using RescueLink.Domain.Enums;
+
+namespace RescueLink.Domain.Entities;
+
+public sealed class PetReportMatch : BaseEntity
+{
+    public Guid LostReportId { get; private set; }
+    public Guid FoundReportId { get; private set; }
+    public int Score { get; private set; }
+    public double DistanceMeters { get; private set; }
+    public MatchStatus Status { get; private set; }
+
+    private PetReportMatch()
+    {
+    }
+
+    public static PetReportMatch Create(
+        Guid lostReportId,
+        Guid foundReportId,
+        int score,
+        double distanceMeters)
+    {
+        if (lostReportId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Lost report ID cannot be empty.",
+                nameof(lostReportId));
+        }
+
+        if (foundReportId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Found report ID cannot be empty.",
+                nameof(foundReportId));
+        }
+
+        if (lostReportId == foundReportId)
+        {
+            throw new ArgumentException(
+                "A pet report cannot be matched with itself.");
+        }
+
+        if (score is < 0 or > 100)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(score),
+                "Match score must be between 0 and 100.");
+        }
+
+        if (distanceMeters < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(distanceMeters),
+                "Distance cannot be negative.");
+        }
+
+        return new PetReportMatch
+        {
+            LostReportId = lostReportId,
+            FoundReportId = foundReportId,
+            Score = score,
+            DistanceMeters = distanceMeters,
+            Status = MatchStatus.Suggested
+        };
+    }
+
+    public void Confirm()
+    {
+        if (Status != MatchStatus.Suggested)
+        {
+            throw new InvalidOperationException(
+                "Only suggested matches can be confirmed.");
+        }
+
+        Status = MatchStatus.Confirmed;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Reject()
+    {
+        if (Status != MatchStatus.Suggested)
+        {
+            throw new InvalidOperationException(
+                "Only suggested matches can be rejected.");
+        }
+
+        Status = MatchStatus.Rejected;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+}

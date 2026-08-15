@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using RescueLink.Application.Abstractions.Messaging;
 using RescueLink.Application.Abstractions.Persistence;
+using RescueLink.Domain.Common;
 using RescueLink.Domain.Entities;
 using RescueLink.Persistence.Identity;
 
@@ -14,10 +16,14 @@ public sealed class RescueLinkDbContext
         Guid>,
       IUnitOfWork
 {
+    private readonly IDomainEventDispatcher _domainEventDispatcher;
+
     public RescueLinkDbContext(
-        DbContextOptions<RescueLinkDbContext> options)
+        DbContextOptions<RescueLinkDbContext> options,
+        IDomainEventDispatcher domainEventDispatcher)
         : base(options)
     {
+        _domainEventDispatcher = domainEventDispatcher;
     }
 
     public DbSet<PetReport> PetReports =>
@@ -25,6 +31,39 @@ public sealed class RescueLinkDbContext
 
     public DbSet<PetReportPhoto> PetReportPhotos =>
         Set<PetReportPhoto>();
+    public DbSet<PetReportMatch> PetReportMatches =>
+        Set<PetReportMatch>();
+
+    public override async Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var entitiesWithDomainEvents = ChangeTracker
+            .Entries<BaseEntity>()
+            .Select(entry => entry.Entity)
+            .Where(entity => entity.DomainEvents.Count > 0)
+            .ToArray();
+
+        var domainEvents = entitiesWithDomainEvents
+            .SelectMany(entity => entity.DomainEvents)
+            .ToArray();
+
+        var result = await base.SaveChangesAsync(
+            cancellationToken);
+
+        foreach (var entity in entitiesWithDomainEvents)
+        {
+            entity.ClearDomainEvents();
+        }
+
+        if (domainEvents.Length > 0)
+        {
+            await _domainEventDispatcher.DispatchAsync(
+                domainEvents,
+                cancellationToken);
+        }
+
+        return result;
+    }
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)

@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
+using RescueLink.Domain.Events;
 using RescueLink.Domain.ValueObjects;
 
 namespace RescueLink.Domain.Tests.Entities;
@@ -603,5 +604,33 @@ public class PetReportTests
             .WithMessage("Photo does not belong to this report.");
 
         report.Photos.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Create_ShouldRaisePetReportCreatedDomainEvent()
+    {
+        var report = PetReport.Create(
+            userId: Guid.NewGuid(),
+            reportType: ReportType.Lost,
+            title: "Kayıp kedi",
+            description: "Gri renkli kedi kayboldu.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.Gray,
+            secondaryColor: AnimalColor.White,
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1),
+            location: GeoLocation.Create(40.195, 29.060));
+
+        var domainEvent = report.DomainEvents
+            .Should()
+            .ContainSingle()
+            .Which
+            .Should()
+            .BeOfType<PetReportCreatedDomainEvent>()
+            .Subject;
+
+        domainEvent.PetReportId.Should().Be(report.Id);
     }
 }
