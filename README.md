@@ -2,9 +2,9 @@
 
 **RescueLink is not just a lost-pet listing API. It is a location-aware matching platform designed to connect lost pet reports with found animal reports through geospatial search and intelligent matching.**
 
-RescueLink helps pet owners reunite with lost animals and enables people who find stray or potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, and (planned) intelligent matching.
+RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation is in active development. Core report creation, authentication, geospatial nearby search, and photo management are implemented. The **Pet Matching Engine**, notifications, advanced filtering, and production deployment features are on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: authentication, report creation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, match listing, and two-sided confirmation/rejection. Notifications, advanced filtering, and production deployment remain on the roadmap.
 
 ---
 
@@ -80,10 +80,14 @@ Today, the API supports:
 
 - User registration and JWT-based login
 - Creating Lost/Found reports with coordinates
+- Resolving or cancelling reports with ownership checks
 - Searching nearby active reports by distance
 - Managing report photos (upload, delete, set primary)
+- Automatically discovering and scoring potential Lost/Found matches
+- Listing match suggestions by score and distance
+- Two-sided match confirmation and rejection
 
-The next major capability is the **Pet Matching Engine**, which will compare new reports against existing ones and return scored, explainable match suggestions.
+Matching is triggered through Domain Events after a report is persisted. Spatial candidate discovery uses Dapper and SQL Server `STDistance`; business scoring remains isolated in the Domain layer.
 
 ---
 
@@ -95,9 +99,12 @@ The next major capability is the **Pet Matching Engine**, which will compare new
 |--------|-------------|
 | **Unified PetReport model** | Single domain entity for `Lost` and `Found` reports |
 | **JWT authentication** | Register, login, protected report/photo operations |
-| **Geospatial nearby search** | SQL Server `geography` + NetTopologySuite; distance in meters |
-| **Photo management** | Up to 5 photos per report; primary photo; local file storage |
-| **CQRS + MediatR** | Commands/queries with dedicated handlers |
+| **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
+| **Smart Matching Engine** | Event-driven Lost/Found candidate discovery with weighted scoring |
+| **Two-sided match decisions** | Both owners must confirm; either owner can reject a suggestion |
+| **Report lifecycle API** | Owner-only resolve and cancel workflows |
+| **Photo management** | Up to 5 photos; primary selection; delete; signature-validated local storage |
+| **CQRS + MediatR** | Commands, queries, pipeline behaviors, and Domain Event notifications |
 | **FluentValidation** | Request validation via pipeline behavior |
 | **Domain rules** | Rich `PetReport` aggregate (resolve/cancel rules, photo limits) |
 | **Unit tests** | Domain and Application layer test coverage |
@@ -107,9 +114,8 @@ The next major capability is the **Pet Matching Engine**, which will compare new
 
 | Feature | Description |
 |--------|-------------|
-| **Pet Matching Engine** | Score-based matching between Lost and Found reports |
-| **Explainable matches** | Match score + human-readable reasons |
-| **Report lifecycle API** | Resolve/cancel endpoints (domain logic exists) |
+| **Explainable matches** | Human-readable reasons in addition to the implemented score |
+| **Match notifications** | Notify users when a high-confidence suggestion is created |
 | **Advanced search & pagination** | Filter by species, breed, status, date range, etc. |
 | **Notifications** | Alert users on high-confidence matches |
 | **Cloud storage** | Azure Blob (or similar) via `IFileStorageService` |
@@ -133,7 +139,7 @@ Created when someone finds a stray or potentially lost animal.
 
 > Example: *A yellow Golden Retriever, male, found in Nilüfer, Bursa.*
 
-Both are stored as **PetReport** records with a `ReportType` of `Lost` or `Found`. They remain independent records, but the planned Matching Engine will compare them using shared attributes and proximity.
+Both are stored as **PetReport** records with a `ReportType` of `Lost` or `Found`. They remain independent records, while the Matching Engine evaluates compatible reports using shared animal attributes and geographic proximity.
 
 ### End-to-end vision
 
@@ -146,38 +152,57 @@ Lost report is created with location + photos
       ↓
 Another user creates a Found report
       ↓
-Matching Engine compares reports          ← planned
+Domain Event triggers Matching Engine
       ↓
-High-confidence match is suggested       ← planned
+Dapper finds nearby opposite-type candidates
       ↓
-User is notified                         ← planned
+Domain scoring creates match suggestions
+      ↓
+Both report owners review the suggestion
+      ↓
+Both confirm (or either rejects)
       ↓
 Owner reunites with pet
       ↓
-Report is marked Resolved                ← domain ready, API planned
+Report is marked Resolved
 ```
 
 ---
 
 ## 6. Pet Matching Engine
 
-> **Status: Planned — not yet implemented**
+> **Status: Implemented**
 
-This is the feature that distinguishes RescueLink from a basic CRUD listing API.
+The Matching Engine distinguishes RescueLink from a basic CRUD listing API. Creating a `PetReport` raises a `PetReportCreatedDomainEvent`. After the report is saved, a MediatR-backed dispatcher invokes the matching observer without coupling report creation to matching logic.
 
-When a Found report is created, the system will evaluate existing Lost reports (and vice versa) using weighted criteria such as:
+Candidate discovery first applies hard rules:
 
-| Criterion | Example weight |
-|-----------|----------------|
-| Species match | +30 |
-| Breed match | +25 |
-| Color match | +15 |
-| Gender match | +10 |
-| Distance < 2 km | +20 |
+- Only `Active` reports
+- Opposite report types (`Lost` ↔ `Found`)
+- Same animal species
+- Different report owners
+- Maximum distance of 10 km
 
-The algorithm will live in a dedicated application/domain service — **not** inside controllers or handlers as large `if/else` blocks — so it can evolve independently.
+Dapper executes the spatial candidate query using SQL Server `geography` and `STDistance`. The Domain scoring service then applies:
 
-See [Example Match Response](#14-example-match-response) for the intended API shape.
+| Criterion | Weight |
+|-----------|--------|
+| Same species | +30 |
+| Same breed | +20 |
+| Same primary color | +20 |
+| Any color overlap | +10 |
+| Same known gender | +10 |
+| Distance | +5 to +20 |
+
+Suggestions require at least **50 points**. Results are stored as `PetReportMatch` records and ordered by score descending, then distance ascending.
+
+Match decisions are two-sided:
+
+- One owner confirms: the match remains `Suggested`
+- Both owners confirm: the match becomes `Confirmed`
+- Either owner rejects: the match becomes `Rejected`
+
+Rejected matches are excluded from match-list responses.
 
 ---
 
@@ -244,6 +269,24 @@ Response
 
 Controllers stay thin: they translate HTTP to MediatR messages and map results to HTTP status codes.
 
+### Event-driven matching flow
+
+```text
+PetReport.Create
+      ↓
+PetReportCreatedDomainEvent
+      ↓
+DbContext saves successfully
+      ↓
+DomainEventDispatcher / MediatR notification
+      ↓
+Dapper spatial candidate query
+      ↓
+Domain score calculator
+      ↓
+EF Core persists PetReportMatch suggestions
+```
+
 ---
 
 ## 9. Technologies
@@ -252,11 +295,11 @@ Controllers stay thin: they translate HTTP to MediatR messages and map results t
 |------|-------|
 | Runtime | .NET 10 |
 | Web framework | ASP.NET Core Web API |
-| Patterns | Clean Architecture, CQRS, MediatR |
+| Patterns | Clean Architecture, CQRS, MediatR, Observer via Domain Events |
 | Validation | FluentValidation |
 | ORM | Entity Framework Core 10 |
 | Geospatial | NetTopologySuite, SQL Server `geography` |
-| Read queries | Dapper (nearby search) |
+| Read queries | Dapper (nearby search, matching candidates, match listing) |
 | Identity | ASP.NET Core Identity |
 | Authentication | JWT Bearer |
 | Storage | Local filesystem (`IFileStorageService`) |
@@ -311,6 +354,19 @@ Domain methods include `Resolve()`, `Cancel()`, `AddPhoto()`, `SetPrimaryPhoto()
 
 Stores a `storageKey` reference (not binary data in the database). One photo can be marked as primary.
 
+### PetReportMatch
+
+Stores a normalized Lost/Found pair, score, distance, lifecycle status, and each owner's confirmation state. A unique database index prevents duplicate Lost/Found pairs.
+
+| Field | Description |
+|-------|-------------|
+| `LostReportId`, `FoundReportId` | Normalized report pair |
+| `Score` | Domain-calculated score from 0 to 100 |
+| `DistanceMeters` | SQL Server spatial distance |
+| `Status` | `Suggested`, `Confirmed`, or `Rejected` |
+| `LostOwnerConfirmed` | Lost report owner's decision |
+| `FoundOwnerConfirmed` | Found report owner's decision |
+
 ### GeoLocation
 
 Value object with validated latitude (-90…90) and longitude (-180…180).
@@ -336,8 +392,18 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | POST | `/api/pet-reports/{id}/photos` | Required | Upload photo (multipart) |
 | PATCH | `/api/pet-reports/{reportId}/photos/{photoId}/primary` | Required | Set primary photo |
 | DELETE | `/api/pet-reports/{reportId}/photos/{photoId}` | Required | Delete photo |
+| PATCH | `/api/pet-reports/{id}/resolve` | Required | Mark active report as resolved |
+| PATCH | `/api/pet-reports/{id}/cancel` | Required | Cancel active report |
+| GET | `/api/pet-reports/{id}/matches` | Required | List owner-visible match suggestions |
 
-**Authorization rules:** Only the report owner can upload, delete, or change photos. Other users' reports cannot be modified.
+### Pet Report Matches (`/api/pet-report-matches`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| PATCH | `/api/pet-report-matches/{matchId}/confirm` | Required | Confirm match for the caller's report |
+| PATCH | `/api/pet-report-matches/{matchId}/reject` | Required | Reject a suggested match |
+
+**Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report.
 
 ---
 
@@ -417,32 +483,32 @@ A Postman collection is available under `postman/collections/`.
 
 ## 14. Example Match Response
 
-> **Status: Planned — illustrative response shape**
-
-When the Matching Engine is implemented, an endpoint such as `GET /api/pet-reports/{id}/matches` may return:
+`GET /api/pet-reports/{id}/matches` returns the counterpart report together with its score, distance, status, and primary photo key:
 
 ```json
-{
-  "sourceReportId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "matches": [
-    {
-      "reportId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-      "reportType": "Found",
-      "matchScore": 87,
-      "distanceMeters": 1800,
-      "reasons": [
-        "Same species",
-        "Same breed",
-        "Same gender",
-        "Similar color",
-        "Reported within 2 km"
-      ]
-    }
-  ]
-}
+[
+  {
+    "matchId": "f51e3b32-cd50-4177-aaac-f744665dfc46",
+    "counterpartReportId": "b4264822-10f9-45bc-9003-d02b74be58fa",
+    "reportType": "Found",
+    "title": "Found tabby cat in Nilüfer",
+    "species": "Cat",
+    "gender": "Male",
+    "breed": "Tabby",
+    "primaryColor": "Gray",
+    "secondaryColor": "White",
+    "eventDate": "2026-08-15T15:00:00+03:00",
+    "latitude": 40.217,
+    "longitude": 28.9852,
+    "score": 100,
+    "distanceMeters": 61.11,
+    "status": "Suggested",
+    "primaryPhotoStorageKey": null
+  }
+]
 ```
 
-This keeps matching **explainable**: users see not only a score, but why the system suggested a match.
+Human-readable scoring reasons are planned as a future enhancement; the numeric scoring and match lifecycle are implemented.
 
 ---
 
@@ -522,8 +588,10 @@ Migrations include:
 - Initial schema (PetReports, photos)
 - ASP.NET Core Identity tables
 - Spatial index on report locations
+- `PetReportMatches` with score/distance constraints and unique Lost/Found pairs
+- Two-sided owner confirmation fields
 
-Nearby search reads use **Dapper** against the same SQL Server database for efficient geospatial queries.
+Nearby search, matching candidate discovery, and match listing use **Dapper** against the same SQL Server database for efficient read queries.
 
 ---
 
@@ -562,6 +630,11 @@ Examples of covered behavior:
 - Nearby query validation
 - Authentication validators
 - Photo upload/delete/set-primary handlers
+- Image signature validation and rollback behavior
+- Resolve/cancel handlers and ownership rules
+- Matching score combinations and distance bands
+- Domain Event matching handler
+- Two-sided confirm/reject handlers
 
 CI runs build and tests on every push/PR to `master` via GitHub Actions.
 
@@ -571,9 +644,11 @@ Integration tests for full API flows are planned.
 
 ## 20. Future Roadmap
 
-- [ ] **Pet Matching Engine** with configurable scoring
-- [ ] **Explainable match results** (score + reasons)
-- [ ] **Resolve / Cancel report API** (`PATCH /api/pet-reports/{id}/resolve`)
+- [x] **Pet Matching Engine** with weighted scoring
+- [x] **Event-driven matching** with Domain Events / Observer Pattern
+- [x] **Resolve / Cancel report API**
+- [x] **Two-sided match confirmation and rejection**
+- [ ] **Explainable match reasons**
 - [ ] **List & filter reports** with pagination
 - [ ] **Update / delete reports**
 - [ ] **Notification system** (in-app → email/push/SignalR)
@@ -592,7 +667,9 @@ Success will be measured not only by report volume, but by **how many lost pets 
 
 - Passwords hashed via ASP.NET Core Identity (complexity rules enforced)
 - JWT Bearer authentication for protected endpoints
-- Users can only manage their own reports and photos
+- Users can only manage their own reports, photos, and match decisions
+- Match details are visible only to the owner of the requested report
+- Two-sided confirmation prevents one party from unilaterally confirming a reunion
 - File uploads validated by content type (magic bytes), size, and path traversal protection on delete
 - JWT secret and connection strings must be kept out of source control (User Secrets / environment variables)
 - Sensitive data (passwords, tokens) must not appear in logs
