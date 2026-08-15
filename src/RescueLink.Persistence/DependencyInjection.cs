@@ -52,7 +52,7 @@ public static class DependencyInjection
         services.AddScoped<IPetReportReadService, PetReportReadService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IPetReportRepository, PetReportRepository>();
-
+        services.AddScoped<IPetReportMatchReadService, PetReportMatchReadService>();
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<RescueLinkDbContext>());
 

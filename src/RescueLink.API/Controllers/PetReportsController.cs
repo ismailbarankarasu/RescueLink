@@ -6,6 +6,7 @@ using RescueLink.Application.Features.PetReports;
 using RescueLink.Application.Features.PetReports.Cancel;
 using RescueLink.Application.Features.PetReports.Create;
 using RescueLink.Application.Features.PetReports.GetById;
+using RescueLink.Application.Features.PetReports.Matching.GetByReportId;
 using RescueLink.Application.Features.PetReports.Nearby;
 using RescueLink.Application.Features.PetReports.Photos.Delete;
 using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
@@ -370,6 +371,46 @@ public sealed class PetReportsController : ControllerBase
 
             "PetReport.NotActive" =>
                 Conflict(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
+    }
+
+    [HttpGet("{id:guid}/matches")]
+    [Authorize]
+    [ProducesResponseType(
+    typeof(IReadOnlyCollection<PetReportMatchResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMatches(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        var query = new GetPetReportMatchesQuery(id);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(),
+
+            "PetReport.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReport.NotFound" =>
+                NotFound(result.Error),
 
             _ => BadRequest(result.Error)
         };
