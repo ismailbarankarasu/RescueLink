@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RescueLink.API.Contracts.PetReports;
+using RescueLink.Application.Common.Pagination;
 using RescueLink.Application.Features.PetReports;
 using RescueLink.Application.Features.PetReports.Cancel;
 using RescueLink.Application.Features.PetReports.Create;
 using RescueLink.Application.Features.PetReports.GetById;
+using RescueLink.Application.Features.PetReports.GetList;
 using RescueLink.Application.Features.PetReports.Matching.GetByReportId;
 using RescueLink.Application.Features.PetReports.Nearby;
 using RescueLink.Application.Features.PetReports.Photos.Delete;
@@ -414,5 +416,34 @@ public sealed class PetReportsController : ControllerBase
 
             _ => BadRequest(result.Error)
         };
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    [ProducesResponseType(
+    typeof(PagedResult<PetReportListItemResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<
+    PagedResult<PetReportListItemResponse>>> GetList(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12,
+        [FromQuery] ReportType? reportType = null,
+        [FromQuery] AnimalSpecies? species = null,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetPetReportsQuery(
+            Page: page,
+            PageSize: pageSize,
+            ReportType: reportType,
+            Species: species,
+            Search: search);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        return Ok(result.Value);
     }
 }
