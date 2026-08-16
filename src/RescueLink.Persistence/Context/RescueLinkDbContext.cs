@@ -25,7 +25,8 @@ public sealed class RescueLinkDbContext
     {
         _domainEventDispatcher = domainEventDispatcher;
     }
-
+    public DbSet<UserNotification> UserNotifications =>
+        Set<UserNotification>();
     public DbSet<PetReport> PetReports =>
         Set<PetReport>();
 

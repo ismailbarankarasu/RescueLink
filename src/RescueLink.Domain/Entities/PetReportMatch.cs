@@ -59,7 +59,7 @@ public sealed class PetReportMatch : BaseEntity
                 "Distance cannot be negative.");
         }
 
-        return new PetReportMatch
+        var match = new PetReportMatch
         {
             LostReportId = lostReportId,
             FoundReportId = foundReportId,
@@ -69,6 +69,14 @@ public sealed class PetReportMatch : BaseEntity
             LostOwnerConfirmed = false,
             FoundOwnerConfirmed = false
         };
+
+        match.RaiseDomainEvent(
+            new PetReportMatchSuggestedDomainEvent(
+                MatchId: match.Id,
+                LostReportId: match.LostReportId,
+                FoundReportId: match.FoundReportId));
+
+        return match;
     }
 
     public void Confirm(Guid petReportId)

@@ -243,6 +243,8 @@ public sealed class PetReportMatchTests
     {
         var match = CreateSuggestedMatch();
 
+        match.ClearDomainEvents();
+
         match.Confirm(match.LostReportId);
 
         match.DomainEvents.Should().BeEmpty();
@@ -260,5 +262,28 @@ public sealed class PetReportMatchTests
         domainEvent.MatchId.Should().Be(match.Id);
         domainEvent.LostReportId.Should().Be(match.LostReportId);
         domainEvent.FoundReportId.Should().Be(match.FoundReportId);
+    }
+
+    [Fact]
+    public void Create_ShouldRaiseSuggestedDomainEvent()
+    {
+        var match = CreateSuggestedMatch();
+
+        var domainEvent = match.DomainEvents
+            .Should()
+            .ContainSingle()
+            .Which
+            .Should()
+            .BeOfType<
+                PetReportMatchSuggestedDomainEvent>()
+            .Subject;
+
+        domainEvent.MatchId.Should().Be(match.Id);
+
+        domainEvent.LostReportId.Should()
+            .Be(match.LostReportId);
+
+        domainEvent.FoundReportId.Should()
+            .Be(match.FoundReportId);
     }
 }
