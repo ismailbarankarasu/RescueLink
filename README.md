@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: authentication, report creation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, match listing, and two-sided confirmation/rejection. Notifications, advanced filtering, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: authentication, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, automatic resolution after mutual confirmation, and in-app match suggestion notifications. Confirmed-match notifications, explainable scoring, and production deployment remain on the roadmap.
 
 ---
 
@@ -86,8 +86,13 @@ Today, the API supports:
 - Automatically discovering and scoring potential Lost/Found matches
 - Listing match suggestions by score and distance
 - Two-sided match confirmation and rejection
+- Automatically resolving both reports after mutual match confirmation
+- Public report discovery with filtering and pagination
+- Authenticated `mine` listing across Active, Resolved, and Cancelled reports
+- Owner-only report updates with automatic Suggested-match recalculation
+- In-app match suggestion notifications with unread filtering and read tracking
 
-Matching is triggered through Domain Events after a report is persisted. Spatial candidate discovery uses Dapper and SQL Server `STDistance`; business scoring remains isolated in the Domain layer.
+Matching is triggered through Domain Events after a report is persisted or updated. Spatial candidate discovery uses Dapper and SQL Server `STDistance`; business scoring remains isolated in the Domain layer.
 
 ---
 
@@ -102,7 +107,11 @@ Matching is triggered through Domain Events after a report is persisted. Spatial
 | **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
 | **Smart Matching Engine** | Event-driven Lost/Found candidate discovery with weighted scoring |
 | **Two-sided match decisions** | Both owners must confirm; either owner can reject a suggestion |
-| **Report lifecycle API** | Owner-only resolve and cancel workflows |
+| **Report lifecycle API** | Owner-only update, resolve, and cancel workflows |
+| **Automatic match resolution** | Both reports become `Resolved` after both owners confirm |
+| **Report discovery** | Public filtering/pagination plus authenticated owner-only `mine` listing |
+| **Match recalculation** | Updating an active report removes stale suggestions and recalculates candidates |
+| **In-app notifications** | Match suggestion notifications, pagination, unread filtering, and read tracking |
 | **Photo management** | Up to 5 photos; primary selection; delete; signature-validated local storage |
 | **CQRS + MediatR** | Commands, queries, pipeline behaviors, and Domain Event notifications |
 | **FluentValidation** | Request validation via pipeline behavior |
@@ -115,9 +124,9 @@ Matching is triggered through Domain Events after a report is persisted. Spatial
 | Feature | Description |
 |--------|-------------|
 | **Explainable matches** | Human-readable reasons in addition to the implemented score |
-| **Match notifications** | Notify users when a high-confidence suggestion is created |
-| **Advanced search & pagination** | Filter by species, breed, status, date range, etc. |
-| **Notifications** | Alert users on high-confidence matches |
+| **Explainable notifications** | Confirmed-match messages and richer notification content |
+| **Advanced filtering** | Add breed and date-range filters to implemented pagination |
+| **Realtime delivery** | SignalR, email, or push delivery on top of persisted in-app notifications |
 | **Cloud storage** | Azure Blob (or similar) via `IFileStorageService` |
 | **Production readiness** | Docker, health checks, monitoring, deployment |
 
@@ -162,9 +171,11 @@ Both report owners review the suggestion
       ↓
 Both confirm (or either rejects)
       ↓
-Owner reunites with pet
+Both reports are automatically marked Resolved
       ↓
-Report is marked Resolved
+Owners receive lifecycle-aware in-app notifications
+      ↓
+Owner reunites with pet
 ```
 
 ---
@@ -173,7 +184,7 @@ Report is marked Resolved
 
 > **Status: Implemented**
 
-The Matching Engine distinguishes RescueLink from a basic CRUD listing API. Creating a `PetReport` raises a `PetReportCreatedDomainEvent`. After the report is saved, a MediatR-backed dispatcher invokes the matching observer without coupling report creation to matching logic.
+The Matching Engine distinguishes RescueLink from a basic CRUD listing API. Creating a `PetReport` raises a `PetReportCreatedDomainEvent`; updating an active report raises a `PetReportUpdatedDomainEvent`. After persistence, MediatR-backed observers invoke a shared recalculation command without coupling report writes to matching logic. Updating a report removes only stale `Suggested` matches, preserves `Confirmed`/`Rejected` history, and recalculates candidates using the new attributes and location.
 
 Candidate discovery first applies hard rules:
 
@@ -199,10 +210,11 @@ Suggestions require at least **50 points**. Results are stored as `PetReportMatc
 Match decisions are two-sided:
 
 - One owner confirms: the match remains `Suggested`
-- Both owners confirm: the match becomes `Confirmed`
+- Both owners confirm: the match becomes `Confirmed` and both reports become `Resolved`
 - Either owner rejects: the match becomes `Rejected`
+- A new suggestion raises a Domain Event that persists one in-app notification per owner
 
-Rejected matches are excluded from match-list responses.
+Rejected matches are excluded from match-list responses. Suggested-match notification delivery is persisted and owner-scoped.
 
 ---
 
@@ -285,6 +297,10 @@ Dapper spatial candidate query
 Domain score calculator
       ↓
 EF Core persists PetReportMatch suggestions
+      ↓
+PetReportMatchSuggestedDomainEvent
+      ↓
+Owner-scoped UserNotifications are persisted
 ```
 
 ---
@@ -299,7 +315,7 @@ EF Core persists PetReportMatch suggestions
 | Validation | FluentValidation |
 | ORM | Entity Framework Core 10 |
 | Geospatial | NetTopologySuite, SQL Server `geography` |
-| Read queries | Dapper (nearby search, matching candidates, match listing) |
+| Read queries | Dapper (nearby search, matching candidates, match listing, report discovery, owner reports, notifications) |
 | Identity | ASP.NET Core Identity |
 | Authentication | JWT Bearer |
 | Storage | Local filesystem (`IFileStorageService`) |
@@ -348,7 +364,7 @@ Central aggregate for both Lost and Found reports.
 | `Location` | `GeoLocation` (latitude/longitude) |
 | `Photos` | Up to 5 photos per report |
 
-Domain methods include `Resolve()`, `Cancel()`, `AddPhoto()`, `SetPrimaryPhoto()`, and `RemovePhoto()`.
+Domain methods include `UpdateDetails()`, `Resolve()`, `Cancel()`, `AddPhoto()`, `SetPrimaryPhoto()`, and `RemovePhoto()`.
 
 ### PetReportPhoto
 
@@ -366,6 +382,10 @@ Stores a normalized Lost/Found pair, score, distance, lifecycle status, and each
 | `Status` | `Suggested`, `Confirmed`, or `Rejected` |
 | `LostOwnerConfirmed` | Lost report owner's decision |
 | `FoundOwnerConfirmed` | Found report owner's decision |
+
+### UserNotification
+
+Persists owner-scoped in-app notifications with type, title, message, optional related entity ID, read state, and read timestamp. `MarkAsRead()` is idempotent.
 
 ### GeoLocation
 
@@ -387,7 +407,10 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | `/api/pet-reports` | Required | Create Lost/Found report |
+| GET | `/api/pet-reports` | Anonymous | Public active report discovery with filters and pagination |
+| GET | `/api/pet-reports/mine` | Required | List the caller's reports with type/status filters |
 | GET | `/api/pet-reports/{id}` | Anonymous | Get report details |
+| PUT | `/api/pet-reports/{id}` | Required | Update an owned active report and recalculate suggestions |
 | GET | `/api/pet-reports/nearby` | Anonymous | Nearby active reports |
 | POST | `/api/pet-reports/{id}/photos` | Required | Upload photo (multipart) |
 | PATCH | `/api/pet-reports/{reportId}/photos/{photoId}/primary` | Required | Set primary photo |
@@ -403,7 +426,14 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | PATCH | `/api/pet-report-matches/{matchId}/confirm` | Required | Confirm match for the caller's report |
 | PATCH | `/api/pet-report-matches/{matchId}/reject` | Required | Reject a suggested match |
 
-**Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report.
+### Notifications (`/api/notifications`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/notifications` | Required | Paginated owner notifications; supports `unreadOnly` |
+| PATCH | `/api/notifications/{id}/read` | Required | Idempotently mark an owned notification as read |
+
+**Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report. Notification queries are always scoped to the authenticated user, and only the owner can mark a notification as read.
 
 ---
 
@@ -590,8 +620,9 @@ Migrations include:
 - Spatial index on report locations
 - `PetReportMatches` with score/distance constraints and unique Lost/Found pairs
 - Two-sided owner confirmation fields
+- `UserNotifications` with Identity ownership, unread/read state, and supporting index
 
-Nearby search, matching candidate discovery, and match listing use **Dapper** against the same SQL Server database for efficient read queries.
+Nearby search, matching candidate discovery, match listing, public/owner report discovery, and notification listing use **Dapper** against the same SQL Server database for efficient read queries.
 
 ---
 
@@ -635,6 +666,10 @@ Examples of covered behavior:
 - Matching score combinations and distance bands
 - Domain Event matching handler
 - Two-sided confirm/reject handlers
+- Automatic report resolution after mutual confirmation
+- Report update authorization and active-state rules
+- Match recalculation and stale-suggestion cleanup flow
+- Notification entity rules, event observers, owner isolation, listing, and mark-as-read handlers
 
 CI runs build and tests on every push/PR to `master` via GitHub Actions.
 
@@ -649,9 +684,13 @@ Integration tests for full API flows are planned.
 - [x] **Resolve / Cancel report API**
 - [x] **Two-sided match confirmation and rejection**
 - [ ] **Explainable match reasons**
-- [ ] **List & filter reports** with pagination
-- [ ] **Update / delete reports**
-- [ ] **Notification system** (in-app → email/push/SignalR)
+- [x] **List & filter reports** with pagination
+- [x] **Owner report listing** with status/type filters
+- [x] **Update active reports** with automatic match recalculation
+- [x] **In-app match suggestion notifications** with read tracking
+- [ ] **Confirmed-match notifications and unread-count endpoint**
+- [ ] **Delete/archive reports**
+- [ ] **Realtime/email/push delivery** (SignalR → email/push)
 - [ ] **Admin role** for moderation
 - [ ] **Azure Blob Storage** provider
 - [ ] **Web / mobile clients**
@@ -667,8 +706,9 @@ Success will be measured not only by report volume, but by **how many lost pets 
 
 - Passwords hashed via ASP.NET Core Identity (complexity rules enforced)
 - JWT Bearer authentication for protected endpoints
-- Users can only manage their own reports, photos, and match decisions
+- Users can only manage their own reports, photos, match decisions, and notifications
 - Match details are visible only to the owner of the requested report
+- Notification list/read operations are scoped to the authenticated user's ID
 - Two-sided confirmation prevents one party from unilaterally confirming a reunion
 - File uploads validated by content type (magic bytes), size, and path traversal protection on delete
 - JWT secret and connection strings must be kept out of source control (User Secrets / environment variables)
