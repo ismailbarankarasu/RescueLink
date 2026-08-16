@@ -1,5 +1,6 @@
 ﻿using RescueLink.Domain.Common;
 using RescueLink.Domain.Enums;
+using RescueLink.Domain.Events;
 
 namespace RescueLink.Domain.Entities;
 
@@ -104,6 +105,12 @@ public sealed class PetReportMatch : BaseEntity
         if (LostOwnerConfirmed && FoundOwnerConfirmed)
         {
             Status = MatchStatus.Confirmed;
+
+            RaiseDomainEvent(
+                new PetReportMatchConfirmedDomainEvent(
+                    MatchId: Id,
+                    LostReportId: LostReportId,
+                    FoundReportId: FoundReportId));
         }
 
         UpdatedAt = DateTimeOffset.UtcNow;

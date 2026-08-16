@@ -74,4 +74,17 @@ public sealed class PetReportRepository
             .Where(report => ids.Contains(report.Id))
             .ToArrayAsync(cancellationToken);
     }
+    public async Task<IReadOnlyCollection<PetReport>> GetByIdsAsync(
+    IReadOnlyCollection<Guid> ids,
+    CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await _dbContext.PetReports
+            .Where(report => ids.Contains(report.Id))
+            .ToArrayAsync(cancellationToken);
+    }
 }

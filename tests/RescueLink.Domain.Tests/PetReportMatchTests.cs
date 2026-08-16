@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
+using RescueLink.Domain.Events;
 
 namespace RescueLink.Domain.Tests.Entities;
 
@@ -236,5 +237,28 @@ public sealed class PetReportMatchTests
             foundReportId: Guid.NewGuid(),
             score: 80,
             distanceMeters: 1000);
+    }
+    [Fact]
+    public void Confirm_ShouldRaiseDomainEvent_WhenBothOwnersConfirm()
+    {
+        var match = CreateSuggestedMatch();
+
+        match.Confirm(match.LostReportId);
+
+        match.DomainEvents.Should().BeEmpty();
+
+        match.Confirm(match.FoundReportId);
+
+        var domainEvent = match.DomainEvents
+            .Should()
+            .ContainSingle()
+            .Which
+            .Should()
+            .BeOfType<PetReportMatchConfirmedDomainEvent>()
+            .Subject;
+
+        domainEvent.MatchId.Should().Be(match.Id);
+        domainEvent.LostReportId.Should().Be(match.LostReportId);
+        domainEvent.FoundReportId.Should().Be(match.FoundReportId);
     }
 }

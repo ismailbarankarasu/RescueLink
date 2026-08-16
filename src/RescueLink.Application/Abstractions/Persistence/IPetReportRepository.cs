@@ -22,4 +22,7 @@ public interface IPetReportRepository
     Task<IReadOnlyCollection<PetReport>> GetByIdsReadOnlyAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<PetReport>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken cancellationToken = default);
 }
