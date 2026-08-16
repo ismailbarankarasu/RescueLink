@@ -2,6 +2,7 @@
 using Moq;
 using RescueLink.Application.Abstractions.Authentication;
 using RescueLink.Application.Abstractions.Persistence;
+using RescueLink.Application.Features.PetReportMatches;
 using RescueLink.Application.Features.PetReportMatches.Confirm;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
@@ -23,7 +24,114 @@ public sealed class ConfirmPetReportMatchCommandHandlerTests
 
     private readonly Mock<IUnitOfWork>
         _unitOfWorkMock = new();
+    [Fact]
+    public async Task Handle_ShouldFail_WhenOneReportIsNotActive()
+    {
+        var lostOwnerId = Guid.NewGuid();
 
+        var lostReport = CreateReport(
+            lostOwnerId,
+            ReportType.Lost);
+
+        var foundReport = CreateReport(
+            Guid.NewGuid(),
+            ReportType.Found);
+
+        foundReport.Cancel();
+
+        var match = PetReportMatch.Create(
+            lostReport.Id,
+            foundReport.Id,
+            score: 90,
+            distanceMeters: 250);
+
+        _currentUserServiceMock
+            .SetupGet(x => x.UserId)
+            .Returns(lostOwnerId);
+
+        _matchRepositoryMock
+            .Setup(x => x.GetByIdAsync(
+                match.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(match);
+
+        _petReportRepositoryMock
+            .Setup(x => x.GetByIdsReadOnlyAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([lostReport, foundReport]);
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new ConfirmPetReportMatchCommand(match.Id),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(
+            PetReportMatchErrors.ReportsNotActive.Code);
+
+        match.LostOwnerConfirmed.Should().BeFalse();
+        match.FoundOwnerConfirmed.Should().BeFalse();
+        match.Status.Should().Be(MatchStatus.Suggested);
+
+        _unitOfWorkMock.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldFail_WhenOneReportDoesNotExist()
+    {
+        var lostOwnerId = Guid.NewGuid();
+
+        var lostReport = CreateReport(
+            lostOwnerId,
+            ReportType.Lost);
+
+        var missingFoundReportId = Guid.NewGuid();
+
+        var match = PetReportMatch.Create(
+            lostReport.Id,
+            missingFoundReportId,
+            score: 85,
+            distanceMeters: 400);
+
+        _currentUserServiceMock
+            .SetupGet(x => x.UserId)
+            .Returns(lostOwnerId);
+
+        _matchRepositoryMock
+            .Setup(x => x.GetByIdAsync(
+                match.Id,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(match);
+
+        _petReportRepositoryMock
+            .Setup(x => x.GetByIdsReadOnlyAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync([lostReport]);
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new ConfirmPetReportMatchCommand(match.Id),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(
+            PetReportMatchErrors.ReportsNotActive.Code);
+
+        match.LostOwnerConfirmed.Should().BeFalse();
+        match.FoundOwnerConfirmed.Should().BeFalse();
+
+        _unitOfWorkMock.Verify(
+            x => x.SaveChangesAsync(
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
     [Fact]
     public async Task Handle_ShouldConfirmMatch_WhenBothOwnersConfirm()
     {

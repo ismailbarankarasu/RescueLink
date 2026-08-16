@@ -63,6 +63,13 @@ public sealed class ConfirmPetReportMatchCommandHandler
                 reportIds,
                 cancellationToken);
 
+        if (reports.Count != 2 ||
+            reports.Any(report =>
+            report.Status != ReportStatus.Active))
+            {
+                return Result.Failure(
+                    PetReportMatchErrors.ReportsNotActive);
+            }
         var ownedReport = reports.FirstOrDefault(
             report =>
                 report.UserId ==

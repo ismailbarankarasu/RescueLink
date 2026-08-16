@@ -15,7 +15,9 @@ public static class PetReportMatchErrors
     public static readonly Error NotSuggested = new(
         "PetReportMatch.NotSuggested",
         "Only suggested matches can be modified.");
-
+    public static readonly Error ReportsNotActive = new(
+        "PetReportMatch.ReportsNotActive",
+        "Both pet reports must be active to confirm the match.");
     public static Error NotFound(Guid matchId)
     {
         return new Error(
