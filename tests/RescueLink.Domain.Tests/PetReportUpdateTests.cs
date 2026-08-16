@@ -1,6 +1,7 @@
 ﻿using FluentAssertions;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
+using RescueLink.Domain.Events;
 using RescueLink.Domain.ValueObjects;
 
 namespace RescueLink.Domain.Tests.Entities;
@@ -128,5 +129,65 @@ public sealed class PetReportUpdateTests
             location: GeoLocation.Create(
                 latitude: 40.2165,
                 longitude: 28.9849));
+    }
+    [Fact]
+    public void UpdateDetails_ShouldRaiseDomainEvent_WhenUpdateSucceeds()
+    {
+        var report = CreateActiveReport();
+
+        // Create sırasında oluşan eventi temizliyoruz.
+        report.ClearDomainEvents();
+
+        report.UpdateDetails(
+            title: "Güncellenmiş ilan",
+            description: "İlan bilgileri güncellendi.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.White,
+            secondaryColor: AnimalColor.Gray,
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1),
+            location: GeoLocation.Create(
+                latitude: 40.2200,
+                longitude: 28.9800));
+
+        var domainEvent = report.DomainEvents
+            .Should()
+            .ContainSingle()
+            .Which
+            .Should()
+            .BeOfType<PetReportUpdatedDomainEvent>()
+            .Subject;
+
+        domainEvent.PetReportId.Should().Be(report.Id);
+    }
+
+    [Fact]
+    public void UpdateDetails_ShouldNotRaiseDomainEvent_WhenReportIsNotActive()
+    {
+        var report = CreateActiveReport();
+
+        report.Resolve();
+        report.ClearDomainEvents();
+
+        var action = () => report.UpdateDetails(
+            title: "Güncellenmiş ilan",
+            description: "İlan bilgileri güncellendi.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.White,
+            secondaryColor: AnimalColor.Gray,
+            eventDate: DateTimeOffset.UtcNow.AddHours(-1),
+            location: GeoLocation.Create(
+                latitude: 40.2200,
+                longitude: 28.9800));
+
+        action.Should()
+            .Throw<InvalidOperationException>();
+
+        report.DomainEvents.Should().BeEmpty();
     }
 }

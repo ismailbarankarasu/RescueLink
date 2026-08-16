@@ -72,4 +72,26 @@ internal sealed class PetReportMatchRepository(
                 match => match.Id == id,
                 cancellationToken);
     }
+    public async Task RemoveSuggestedByReportIdAsync(
+    Guid petReportId,
+    CancellationToken cancellationToken = default)
+    {
+        var suggestedMatches =
+            await dbContext.PetReportMatches
+                .Where(match =>
+                    match.Status == MatchStatus.Suggested &&
+                    (
+                        match.LostReportId == petReportId ||
+                        match.FoundReportId == petReportId
+                    ))
+                .ToArrayAsync(cancellationToken);
+
+        if (suggestedMatches.Length == 0)
+        {
+            return;
+        }
+
+        dbContext.PetReportMatches.RemoveRange(
+            suggestedMatches);
+    }
 }

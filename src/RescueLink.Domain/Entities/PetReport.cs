@@ -78,16 +78,16 @@ namespace RescueLink.Domain.Entities
             return petReport;
         }
         public void UpdateDetails(
-            string title,
-            string description,
-            AnimalSpecies species,
-            AnimalGender gender,
-            string? petName,
-            string? breed,
-            AnimalColor primaryColor,
-            AnimalColor? secondaryColor,
-            DateTimeOffset eventDate,
-            GeoLocation location)
+         string title,
+         string description,
+         AnimalSpecies species,
+         AnimalGender gender,
+         string? petName,
+         string? breed,
+         AnimalColor primaryColor,
+         AnimalColor? secondaryColor,
+         DateTimeOffset eventDate,
+         GeoLocation location)
         {
             if (Status != ReportStatus.Active)
             {
@@ -117,6 +117,10 @@ namespace RescueLink.Domain.Entities
             EventDate = eventDate;
             Location = location;
             UpdatedAt = DateTimeOffset.UtcNow;
+
+            RaiseDomainEvent(
+                new PetReportUpdatedDomainEvent(
+                    PetReportId: Id));
         }
         public void Resolve()
         {

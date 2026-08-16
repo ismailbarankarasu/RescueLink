@@ -1,16 +1,17 @@
-﻿using Moq;
+﻿using FluentAssertions;
+using Moq;
 using RescueLink.Application.Abstractions.Data;
 using RescueLink.Application.Abstractions.Persistence;
 using RescueLink.Application.Common.Events;
 using RescueLink.Application.Features.PetReports.Matching;
+using RescueLink.Application.Features.PetReports.Matching.Recalculate;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
 using RescueLink.Domain.Events;
 using RescueLink.Domain.ValueObjects;
-
 namespace RescueLink.Application.Tests.Features.PetReports.Matching;
 
-public sealed class PetReportCreatedDomainEventHandlerTests
+public sealed class RecalculatePetReportMatchesCommandHandlerTests
 {
     private readonly Mock<IPetReportRepository> _reportRepositoryMock =
         new();
@@ -107,9 +108,12 @@ public sealed class PetReportCreatedDomainEventHandlerTests
                 new PetReportCreatedDomainEvent(
                     sourceReport.Id));
 
-        await handler.Handle(
-            notification,
+        var command = new RecalculatePetReportMatchesCommand(sourceReport.Id);
+        var result = await handler.Handle(
+            command,
             CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
 
         Assert.NotNull(capturedMatches);
         Assert.Single(capturedMatches);
@@ -178,9 +182,13 @@ public sealed class PetReportCreatedDomainEventHandlerTests
                 new PetReportCreatedDomainEvent(
                     sourceReport.Id));
 
-        await handler.Handle(
-            notification,
+        var command = new RecalculatePetReportMatchesCommand(sourceReport.Id);
+
+        var result = await handler.Handle(
+            command,
             CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
 
         _matchRepositoryMock.Verify(
             x => x.AddRangeAsync(
@@ -255,9 +263,13 @@ public sealed class PetReportCreatedDomainEventHandlerTests
                 new PetReportCreatedDomainEvent(
                     sourceReport.Id));
 
-        await handler.Handle(
-            notification,
+        var command = new RecalculatePetReportMatchesCommand(sourceReport.Id);
+
+        var result = await handler.Handle(
+            command,
             CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
 
         _matchRepositoryMock.Verify(
             x => x.AddRangeAsync(
@@ -271,9 +283,9 @@ public sealed class PetReportCreatedDomainEventHandlerTests
             Times.Never);
     }
 
-    private PetReportCreatedDomainEventHandler CreateHandler()
+    private RecalculatePetReportMatchesCommandHandler CreateHandler()
     {
-        return new PetReportCreatedDomainEventHandler(
+        return new RecalculatePetReportMatchesCommandHandler(
             _reportRepositoryMock.Object,
             _matchRepositoryMock.Object,
             _candidateReadServiceMock.Object,
