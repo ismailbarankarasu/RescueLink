@@ -47,6 +47,7 @@ public static class DependencyInjection
         })
         .AddRoles<IdentityRole<Guid>>()
         .AddEntityFrameworkStores<RescueLinkDbContext>();
+        services.AddScoped<IMyPetReportReadService, MyPetReportReadService>();
         services.AddScoped<IPetReportListReadService, PetReportListReadService>();
         services.AddScoped<IPetReportMatchRepository, PetReportMatchRepository>();
         services.AddScoped<IPetReportMatchCandidateReadService, PetReportMatchCandidateReadService>();

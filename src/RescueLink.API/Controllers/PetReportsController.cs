@@ -8,6 +8,7 @@ using RescueLink.Application.Features.PetReports.Cancel;
 using RescueLink.Application.Features.PetReports.Create;
 using RescueLink.Application.Features.PetReports.GetById;
 using RescueLink.Application.Features.PetReports.GetList;
+using RescueLink.Application.Features.PetReports.GetMine;
 using RescueLink.Application.Features.PetReports.Matching.GetByReportId;
 using RescueLink.Application.Features.PetReports.Nearby;
 using RescueLink.Application.Features.PetReports.Photos.Delete;
@@ -443,6 +444,45 @@ public sealed class PetReportsController : ControllerBase
         var result = await _sender.Send(
             query,
             cancellationToken);
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("mine")]
+    [Authorize]
+    [ProducesResponseType(
+    typeof(PagedResult<MyPetReportListItemResponse>),
+    StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<
+    PagedResult<MyPetReportListItemResponse>>> GetMine(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12,
+        [FromQuery] ReportType? reportType = null,
+        [FromQuery] ReportStatus? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetMyPetReportsQuery(
+            Page: page,
+            PageSize: pageSize,
+            ReportType: reportType,
+            Status: status);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code switch
+            {
+                "Authentication.Unauthenticated" =>
+                    Unauthorized(result.Error),
+
+                _ => BadRequest(result.Error)
+            };
+        }
 
         return Ok(result.Value);
     }
