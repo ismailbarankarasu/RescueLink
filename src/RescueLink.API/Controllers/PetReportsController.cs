@@ -15,6 +15,7 @@ using RescueLink.Application.Features.PetReports.Photos.Delete;
 using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
 using RescueLink.Application.Features.PetReports.Photos.Upload;
 using RescueLink.Application.Features.PetReports.Resolve;
+using RescueLink.Application.Features.PetReports.Update;
 using RescueLink.Domain.Enums;
 
 namespace RescueLink.API.Controllers;
@@ -485,5 +486,61 @@ public sealed class PetReportsController : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Update(
+    Guid id,
+    [FromBody] UpdatePetReportRequest request,
+    CancellationToken cancellationToken)
+    {
+        var command = new UpdatePetReportCommand(
+            PetReportId: id,
+            Title: request.Title,
+            Description: request.Description,
+            Species: request.Species,
+            Gender: request.Gender,
+            PetName: request.PetName,
+            Breed: request.Breed,
+            PrimaryColor: request.PrimaryColor,
+            SecondaryColor: request.SecondaryColor,
+            EventDate: request.EventDate,
+            Latitude: request.Latitude,
+            Longitude: request.Longitude);
+
+        var result = await _sender.Send(
+            command,
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(result.Error),
+
+            "PetReport.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReport.NotFound" =>
+                NotFound(result.Error),
+
+            "PetReport.NotActive" =>
+                Conflict(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
     }
 }

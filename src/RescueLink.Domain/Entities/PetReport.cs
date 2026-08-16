@@ -77,7 +77,47 @@ namespace RescueLink.Domain.Entities
 
             return petReport;
         }
+        public void UpdateDetails(
+            string title,
+            string description,
+            AnimalSpecies species,
+            AnimalGender gender,
+            string? petName,
+            string? breed,
+            AnimalColor primaryColor,
+            AnimalColor? secondaryColor,
+            DateTimeOffset eventDate,
+            GeoLocation location)
+        {
+            if (Status != ReportStatus.Active)
+            {
+                throw new InvalidOperationException(
+                    "Only active reports can be updated.");
+            }
 
+            ValidateCreation(
+                userId: UserId,
+                reportType: ReportType,
+                title: title,
+                description: description,
+                species: species,
+                primaryColor: primaryColor,
+                secondaryColor: secondaryColor,
+                eventDate: eventDate,
+                location: location);
+
+            Title = title.Trim();
+            Description = description.Trim();
+            Species = species;
+            Gender = gender;
+            PetName = NormalizeOptionalText(petName);
+            Breed = NormalizeOptionalText(breed);
+            PrimaryColor = primaryColor;
+            SecondaryColor = secondaryColor;
+            EventDate = eventDate;
+            Location = location;
+            UpdatedAt = DateTimeOffset.UtcNow;
+        }
         public void Resolve()
         {
             if (Status != ReportStatus.Active)
