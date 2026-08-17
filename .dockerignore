@@ -1,0 +1,11 @@
+.git
+.github
+.vs
+**/bin
+**/obj
+**/*.user
+**/*.suo
+**/wwwroot/uploads
+tests
+README.md
+LICENSE.txt

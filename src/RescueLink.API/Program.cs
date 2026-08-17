@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RescueLink.API.Common;
 using RescueLink.API.ExceptionHandlers;
@@ -8,9 +9,9 @@ using RescueLink.Application.Abstractions.Authentication;
 using RescueLink.Infrastructure;
 using RescueLink.Persistence;
 using RescueLink.Persistence.Context;
+using Serilog;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -144,6 +145,19 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>(
+    "Database:ApplyMigrations"))
+{
+    await using var scope =
+        app.Services.CreateAsyncScope();
+
+    var dbContext =
+        scope.ServiceProvider
+            .GetRequiredService<RescueLinkDbContext>();
+
+    await dbContext.Database.MigrateAsync();
+}
 
 app.UseSerilogRequestLogging(options =>
 {

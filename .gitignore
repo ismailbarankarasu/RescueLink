@@ -367,3 +367,6 @@ src/RescueLink.API/wwwroot/uploads/
 
 # Ignore legacy Visual Studio solution file
 /RescueLink.sln
+
+# Docker environment secrets
+.env
