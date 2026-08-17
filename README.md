@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: authentication, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, automatic resolution after mutual confirmation, and in-app match suggestion/confirmation notifications with unread counts and bulk read operations. Explainable scoring, realtime delivery, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, and in-app notifications with unread counts and bulk read operations. Explainable scoring, realtime delivery, structured logging, and production deployment remain on the roadmap.
 
 ---
 
@@ -79,6 +79,8 @@ RescueLink uses a unified **PetReport** model for both Lost and Found reports. E
 Today, the API supports:
 
 - User registration and JWT-based login
+- Hashed refresh-token persistence, single-use rotation, replay protection, logout/revocation, and optimistic concurrency control
+- Per-IP rate limiting for authentication/token endpoints and configuration-based frontend CORS
 - Creating Lost/Found reports with coordinates
 - Resolving or cancelling reports with ownership checks
 - Searching nearby active reports by distance
@@ -86,6 +88,7 @@ Today, the API supports:
 - Automatically discovering and scoring potential Lost/Found matches
 - Listing match suggestions by score and distance
 - Two-sided match confirmation and rejection
+- Secure counterpart contact disclosure only to match participants after mutual confirmation
 - Automatically resolving both reports after mutual match confirmation
 - Public report discovery with filtering and pagination
 - Authenticated `mine` listing across Active, Resolved, and Cancelled reports
@@ -103,7 +106,11 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | Feature | Description |
 |--------|-------------|
 | **Unified PetReport model** | Single domain entity for `Lost` and `Found` reports |
-| **JWT authentication** | Register, login, protected report/photo operations |
+| **JWT authentication** | Register/login plus protected report, photo, match, and notification operations |
+| **Refresh-token sessions** | SHA-256 token hashes, rotation, replay prevention, logout/revocation, and SQL Server `rowversion` concurrency control |
+| **API abuse protection** | Separate per-IP rate limits for authentication and token operations |
+| **Frontend-ready CORS** | Configuration-based allowlist for trusted Angular origins |
+| **Health checks** | Independent liveness plus SQL Server-backed readiness endpoints |
 | **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
 | **Smart Matching Engine** | Event-driven Lost/Found candidate discovery with weighted scoring |
 | **Two-sided match decisions** | Both owners must confirm; either owner can reject a suggestion |
@@ -128,7 +135,7 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **Advanced filtering** | Add breed and date-range filters to implemented pagination |
 | **Realtime delivery** | SignalR, email, or push delivery on top of persisted in-app notifications |
 | **Cloud storage** | Azure Blob (or similar) via `IFileStorageService` |
-| **Production readiness** | Docker, health checks, monitoring, deployment |
+| **Production readiness** | Docker, structured logging, monitoring, and deployment |
 
 ---
 
@@ -155,7 +162,7 @@ Both are stored as **PetReport** records with a `ReportType` of `Lost` or `Found
 ```text
 User registers
       ↓
-User logs in
+User logs in and receives access + refresh tokens
       ↓
 Lost report is created with location + photos
       ↓
@@ -172,6 +179,8 @@ Both report owners review the suggestion
 Both confirm (or either rejects)
       ↓
 Both reports are automatically marked Resolved
+      ↓
+Confirmed participants can securely retrieve counterpart contact details
       ↓
 Owners receive lifecycle-aware in-app notifications
       ↓
@@ -213,6 +222,7 @@ Match decisions are two-sided:
 - Both owners confirm: the match becomes `Confirmed` and both reports become `Resolved`
 - Either owner rejects: the match becomes `Rejected`
 - A new suggestion raises a Domain Event that persists one in-app notification per owner
+- Contact information is available only after mutual confirmation and only to the two participating owners
 
 Rejected matches are excluded from match-list responses. Suggested-match notification delivery is persisted and owner-scoped.
 
@@ -317,7 +327,9 @@ Owner-scoped UserNotifications are persisted
 | Geospatial | NetTopologySuite, SQL Server `geography` |
 | Read queries | Dapper (nearby search, matching candidates, match listing, report discovery, owner reports, notifications) |
 | Identity | ASP.NET Core Identity |
-| Authentication | JWT Bearer |
+| Authentication | JWT Bearer, hashed refresh tokens, rotation, revocation, optimistic concurrency |
+| API protection | ASP.NET Core rate limiting, restricted CORS |
+| Operations | Liveness and SQL Server readiness health checks |
 | Storage | Local filesystem (`IFileStorageService`) |
 | Testing | xUnit, FluentAssertions (Domain + Application tests) |
 | CI | GitHub Actions |
@@ -400,7 +412,9 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | `/api/auth/register` | Anonymous | Create account |
-| POST | `/api/auth/login` | Anonymous | Login and receive JWT |
+| POST | `/api/auth/login` | Anonymous | Login and receive access + refresh tokens |
+| POST | `/api/auth/refresh` | Anonymous | Rotate a valid refresh token and issue a new token pair |
+| POST | `/api/auth/logout` | Anonymous | Idempotently revoke a refresh token |
 
 ### Pet Reports (`/api/pet-reports`)
 
@@ -425,6 +439,7 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 |--------|----------|------|-------------|
 | PATCH | `/api/pet-report-matches/{matchId}/confirm` | Required | Confirm match for the caller's report |
 | PATCH | `/api/pet-report-matches/{matchId}/reject` | Required | Reject a suggested match |
+| GET | `/api/pet-report-matches/{matchId}/contact` | Required | Return counterpart contact details only after mutual confirmation |
 
 ### Notifications (`/api/notifications`)
 
@@ -434,6 +449,13 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | GET | `/api/notifications/unread-count` | Required | Return the caller's unread notification count |
 | PATCH | `/api/notifications/{id}/read` | Required | Idempotently mark an owned notification as read |
 | PATCH | `/api/notifications/read-all` | Required | Mark all caller notifications as read in one bulk update |
+
+### Health (`/health`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health/live` | Anonymous | Process liveness without external dependencies |
+| GET | `/health/ready` | Anonymous | SQL Server-backed readiness check |
 
 **Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report. Notification queries are always scoped to the authenticated user, and only the owner can mark a notification as read.
 
@@ -468,7 +490,29 @@ Content-Type: application/json
 }
 ```
 
-Response includes `accessToken` — use as `Authorization: Bearer {token}`.
+Response includes `accessToken`, `expiresAt`, `refreshToken`, and `refreshTokenExpiresAt`. Use the access token as `Authorization: Bearer {token}`. Refresh tokens are single-use: successful refresh rotates the token and revokes the previous value.
+
+### Refresh an authentication session
+
+```http
+POST /api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{current-refresh-token}"
+}
+```
+
+### Logout
+
+```http
+POST /api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{current-refresh-token}"
+}
+```
 
 ### Create Lost Report
 
@@ -590,6 +634,15 @@ Update `src/RescueLink.API/appsettings.json` (or User Secrets / environment vari
     "Issuer": "RescueLink.API",
     "Audience": "RescueLink.Web",
     "ExpirationMinutes": 60
+  },
+  "RefreshToken": {
+    "ExpirationDays": 7
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "http://localhost:4200",
+      "https://localhost:4200"
+    ]
   }
 }
 ```
@@ -623,6 +676,7 @@ Migrations include:
 - `PetReportMatches` with score/distance constraints and unique Lost/Found pairs
 - Two-sided owner confirmation fields
 - `UserNotifications` with Identity ownership, unread/read state, and supporting index
+- `RefreshTokens` with hashed values, expiry/revocation metadata, replacement chains, unique hash index, and SQL Server `rowversion`
 
 Nearby search, matching candidate discovery, match listing, public/owner report discovery, and notification listing use **Dapper** against the same SQL Server database for efficient read queries.
 
@@ -661,7 +715,7 @@ Examples of covered behavior:
 - PetReport creation and photo limits
 - Resolve/cancel domain rules
 - Nearby query validation
-- Authentication validators
+- Authentication validators and login/refresh/logout handlers
 - Photo upload/delete/set-primary handlers
 - Image signature validation and rollback behavior
 - Resolve/cancel handlers and ownership rules
@@ -672,6 +726,7 @@ Examples of covered behavior:
 - Report update authorization and active-state rules
 - Match recalculation and stale-suggestion cleanup flow
 - Notification entity rules, suggested/confirmed event observers, owner isolation, listing, unread count, single read, and bulk-read handlers
+- Confirmed-match contact authorization and disclosure rules
 
 CI runs build and tests on every push/PR to `master` via GitHub Actions.
 
@@ -691,13 +746,18 @@ Integration tests for full API flows are planned.
 - [x] **Update active reports** with automatic match recalculation
 - [x] **In-app match suggestion notifications** with read tracking
 - [x] **Confirmed-match notifications, unread-count endpoint, and bulk read**
+- [x] **Secure counterpart contact disclosure after mutual confirmation**
+- [x] **Refresh-token rotation, replay prevention, logout, and concurrency protection**
+- [x] **Per-IP authentication/token rate limiting**
+- [x] **Restricted frontend CORS policy**
+- [x] **Liveness and SQL Server readiness health checks**
 - [ ] **Delete/archive reports**
 - [ ] **Realtime/email/push delivery** (SignalR → email/push)
 - [ ] **Admin role** for moderation
 - [ ] **Azure Blob Storage** provider
 - [ ] **Web / mobile clients**
 - [ ] **Docker & CI/CD deployment**
-- [ ] **Health checks & structured logging**
+- [ ] **Structured logging and production monitoring**
 - [ ] **Integration tests**
 
 Success will be measured not only by report volume, but by **how many lost pets are reunited through the platform**.
@@ -708,8 +768,12 @@ Success will be measured not only by report volume, but by **how many lost pets 
 
 - Passwords hashed via ASP.NET Core Identity (complexity rules enforced)
 - JWT Bearer authentication for protected endpoints
+- Refresh tokens are stored only as SHA-256 hashes, rotated after use, revocable on logout, and protected from concurrent reuse with SQL Server `rowversion`
+- Separate per-IP rate limits protect login/register and refresh/logout operations
+- Frontend CORS uses an explicit configuration allowlist rather than `AllowAnyOrigin`
 - Users can only manage their own reports, photos, match decisions, and notifications
 - Match details are visible only to the owner of the requested report
+- Counterpart contact information is disclosed only to match participants after mutual confirmation
 - Notification list/read operations are scoped to the authenticated user's ID
 - Two-sided confirmation prevents one party from unilaterally confirming a reunion
 - File uploads validated by content type (magic bytes), size, and path traversal protection on delete
