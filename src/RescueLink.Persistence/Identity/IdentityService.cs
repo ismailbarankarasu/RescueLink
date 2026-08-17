@@ -104,4 +104,30 @@ public sealed class IdentityService : IIdentityService
 
         return Result.Success(response);
     }
+    public async Task<UserContactInfo?> GetUserContactAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return null;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(
+            userId.ToString());
+
+        if (user is null ||
+            string.IsNullOrWhiteSpace(user.Email))
+        {
+            return null;
+        }
+
+        return new UserContactInfo(
+            UserId: user.Id,
+            FirstName: user.FirstName,
+            LastName: user.LastName,
+            Email: user.Email);
+    }
 }

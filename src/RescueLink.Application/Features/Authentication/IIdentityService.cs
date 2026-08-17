@@ -16,4 +16,8 @@ public interface IIdentityService
         string email,
         string password,
         CancellationToken cancellationToken = default);
+
+    Task<UserContactInfo?> GetUserContactAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }

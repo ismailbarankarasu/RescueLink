@@ -21,4 +21,8 @@ public interface IPetReportMatchRepository
     Task RemoveSuggestedByReportIdAsync(
         Guid petReportId,
         CancellationToken cancellationToken = default);
+
+    Task<PetReportMatch?> GetByIdReadOnlyAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

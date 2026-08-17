@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RescueLink.Application.Features.PetReportMatches.Confirm;
+using RescueLink.Application.Features.PetReportMatches.GetContact;
 using RescueLink.Application.Features.PetReportMatches.Reject;
 
 namespace RescueLink.API.Controllers;
@@ -93,6 +94,45 @@ public sealed class PetReportMatchesController(
                 NotFound(result.Error),
 
             "PetReportMatch.NotSuggested" =>
+                Conflict(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
+    }
+
+
+    [Authorize]
+    [HttpGet("{matchId:guid}/contact")]
+    public async Task<IActionResult> GetContact(
+    Guid matchId,
+    CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetMatchContactQuery(matchId),
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.Unauthenticated" =>
+                Unauthorized(result.Error),
+
+            "PetReportMatch.NotFound" =>
+                NotFound(result.Error),
+
+            "PetReportMatch.RelatedReportsNotFound" =>
+                NotFound(result.Error),
+
+            "PetReportMatch.Forbidden" =>
+                StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    result.Error),
+
+            "PetReportMatch.ContactNotAvailable" =>
                 Conflict(result.Error),
 
             _ => BadRequest(result.Error)

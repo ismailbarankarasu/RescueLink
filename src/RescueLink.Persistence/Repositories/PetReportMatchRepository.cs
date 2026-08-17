@@ -94,4 +94,15 @@ internal sealed class PetReportMatchRepository(
         dbContext.PetReportMatches.RemoveRange(
             suggestedMatches);
     }
+
+    public async Task<PetReportMatch?> GetByIdReadOnlyAsync(
+    Guid id,
+    CancellationToken cancellationToken = default)
+    {
+        return await dbContext.PetReportMatches
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                match => match.Id == id,
+                cancellationToken);
+    }
 }

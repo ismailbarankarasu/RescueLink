@@ -18,6 +18,13 @@ public static class PetReportMatchErrors
     public static readonly Error ReportsNotActive = new(
         "PetReportMatch.ReportsNotActive",
         "Both pet reports must be active to confirm the match.");
+    public static readonly Error ContactNotAvailable = new(
+        "PetReportMatch.ContactNotAvailable",
+        "Contact information is available only after mutual confirmation.");
+
+    public static readonly Error RelatedReportsNotFound = new(
+            "PetReportMatch.RelatedReportsNotFound",
+            "The reports related to this match could not be found.");
     public static Error NotFound(Guid matchId)
     {
         return new Error(
