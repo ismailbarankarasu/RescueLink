@@ -142,6 +142,7 @@ builder.Services
 builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 var app = builder.Build();
 
 app.UseSerilogRequestLogging(options =>
@@ -161,8 +162,7 @@ app.UseSerilogRequestLogging(options =>
             return Serilog.Events.LogEventLevel.Error;
         }
 
-        if (httpContext.Response.StatusCode >= 400)
-        {
+        if (httpContext.Response.StatusCode >= 400)        {
             return Serilog.Events.LogEventLevel.Warning;
         }
 
@@ -186,7 +186,7 @@ app.UseSerilogRequestLogging(options =>
             userId);
     };
 });
-
+app.UseExceptionHandler();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
