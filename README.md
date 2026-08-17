@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, and in-app notifications with unread counts and bulk read operations. Explainable scoring, realtime delivery, structured logging, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, and in-app notifications with unread counts and bulk read operations. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
 
 ---
 
@@ -94,6 +94,8 @@ Today, the API supports:
 - Authenticated `mine` listing across Active, Resolved, and Cancelled reports
 - Owner-only report updates with automatic Suggested-match recalculation
 - In-app match suggestion notifications with unread filtering and read tracking
+- Structured Serilog request logging with trace/user correlation and safe global exception handling
+- Dockerized API + SQL Server startup with automatic migrations, health checks, and persistent volumes
 
 Matching is triggered through Domain Events after a report is persisted or updated. Spatial candidate discovery uses Dapper and SQL Server `STDistance`; business scoring remains isolated in the Domain layer.
 
@@ -111,6 +113,8 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **API abuse protection** | Separate per-IP rate limits for authentication and token operations |
 | **Frontend-ready CORS** | Configuration-based allowlist for trusted Angular origins |
 | **Health checks** | Independent liveness plus SQL Server-backed readiness endpoints |
+| **Structured observability** | Serilog request logs, trace/user correlation, status-aware levels, and safe global exception handling |
+| **Dockerized runtime** | Multi-stage .NET 10 image, SQL Server Compose service, automatic migrations, and persistent SQL/upload volumes |
 | **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
 | **Smart Matching Engine** | Event-driven Lost/Found candidate discovery with weighted scoring |
 | **Two-sided match decisions** | Both owners must confirm; either owner can reject a suggestion |
@@ -124,7 +128,7 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **FluentValidation** | Request validation via pipeline behavior |
 | **Domain rules** | Rich `PetReport` aggregate (resolve/cancel rules, photo limits) |
 | **Unit tests** | Domain and Application layer test coverage |
-| **CI pipeline** | GitHub Actions build and test on .NET 10 |
+| **CI pipeline** | GitHub Actions restore, Release build, tests, and Docker image validation on .NET 10 |
 
 ### Planned
 
@@ -135,7 +139,7 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **Advanced filtering** | Add breed and date-range filters to implemented pagination |
 | **Realtime delivery** | SignalR, email, or push delivery on top of persisted in-app notifications |
 | **Cloud storage** | Azure Blob (or similar) via `IFileStorageService` |
-| **Production readiness** | Docker, structured logging, monitoring, and deployment |
+| **Deployment automation** | Container registry publishing, centralized monitoring, and production deployment |
 
 ---
 
@@ -329,10 +333,11 @@ Owner-scoped UserNotifications are persisted
 | Identity | ASP.NET Core Identity |
 | Authentication | JWT Bearer, hashed refresh tokens, rotation, revocation, optimistic concurrency |
 | API protection | ASP.NET Core rate limiting, restricted CORS |
-| Operations | Liveness and SQL Server readiness health checks |
+| Operations | Liveness/readiness health checks, Serilog structured request logging, and safe global exception handling |
+| Containers | Multi-stage Dockerfile, Docker Compose, SQL Server 2022, persistent volumes |
 | Storage | Local filesystem (`IFileStorageService`) |
-| Testing | xUnit, FluentAssertions (Domain + Application tests) |
-| CI | GitHub Actions |
+| Testing | xUnit, Moq, FluentAssertions (Domain + Application + API tests) |
+| CI | GitHub Actions (.NET build/test + Docker image build) |
 | API exploration | OpenAPI (Development), Postman collection |
 
 ---
@@ -349,9 +354,14 @@ RescueLink/
 │   └── RescueLink.Persistence/      # DbContext, migrations, repositories, Dapper
 ├── tests/
 │   ├── RescueLink.Domain.Tests/
-│   └── RescueLink.Application.Tests/
+│   ├── RescueLink.Application.Tests/
+│   └── RescueLink.API.Tests/        # HTTP exception handling tests
 ├── postman/                         # API request collection
-├── .github/workflows/dotnet.yml     # CI pipeline
+├── .github/workflows/dotnet.yml     # .NET + Docker CI pipeline
+├── Dockerfile                       # Multi-stage .NET 10 API image
+├── compose.yml                      # API + SQL Server orchestration
+├── .dockerignore
+├── .env.example                     # Required environment variable template
 └── RescueLink.slnx
 ```
 
@@ -595,6 +605,7 @@ Human-readable scoring reasons are planned as a future enhancement; the numeric 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - SQL Server (LocalDB, Express, or full instance)
 - (Optional) Postman for API testing
+- (Optional) Docker Desktop for containerized startup
 
 ### Clone and run
 
@@ -616,6 +627,46 @@ Default URLs (Development):
 - HTTPS: `https://localhost:7051`
 - HTTP: `http://localhost:5218`
 - OpenAPI: available in Development environment
+
+### Run with Docker Compose
+
+Docker starts the API and SQL Server together, applies EF Core migrations when enabled by Compose, and stores database/uploads in named volumes.
+
+```bash
+git clone https://github.com/ismailbarankarasu/RescueLink.git
+cd RescueLink
+
+# Create the local secrets file from the committed template
+cp .env.example .env
+
+# Replace the placeholder values in .env, then start the stack
+docker compose up -d --build
+```
+
+Windows PowerShell users can create the file with:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Docker endpoints and ports:
+
+| Resource | Address | Purpose |
+|----------|---------|---------|
+| API | `http://localhost:8080` | RescueLink HTTP API |
+| Liveness | `http://localhost:8080/health/live` | Process health |
+| Readiness | `http://localhost:8080/health/ready` | API + SQL Server readiness |
+| SQL Server | `localhost,14330` | Optional host access (container uses internal port 1433) |
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs api --tail 100
+docker compose down
+```
+
+`docker compose down` keeps named volumes. Do not add `-v` unless you intentionally want to delete Docker database and upload data. The real `.env` file is ignored by Git; only `.env.example` is committed.
 
 ---
 
@@ -656,6 +707,17 @@ dotnet user-secrets set "Jwt:SecretKey" "your-super-secret-key-at-least-32-bytes
 ```
 
 The secret must be at least **32 bytes**.
+
+### Docker environment variables
+
+Compose reads a local `.env` file in the repository root and injects configuration through ASP.NET Core environment-variable mapping:
+
+```env
+SQL_SA_PASSWORD=replace-with-a-strong-local-password
+JWT_SECRET_KEY=replace-with-a-random-secret-of-at-least-64-characters
+```
+
+`Jwt__SecretKey`, `ConnectionStrings__DefaultConnection`, and `Database__ApplyMigrations` in `compose.yml` map to nested ASP.NET Core configuration. Never commit the real `.env` file or paste the resolved output of `docker compose config` into issues/logs because it may contain secrets.
 
 ---
 
@@ -709,6 +771,7 @@ Test projects:
 |---------|-------|
 | `RescueLink.Domain.Tests` | PetReport rules, GeoLocation, entity behavior |
 | `RescueLink.Application.Tests` | Handlers, validators, MediatR pipeline |
+| `RescueLink.API.Tests` | Safe global exception responses and exception logging |
 
 Examples of covered behavior:
 
@@ -728,7 +791,7 @@ Examples of covered behavior:
 - Notification entity rules, suggested/confirmed event observers, owner isolation, listing, unread count, single read, and bulk-read handlers
 - Confirmed-match contact authorization and disclosure rules
 
-CI runs build and tests on every push/PR to `master` via GitHub Actions.
+CI runs restore, Release build, all tests, and a Linux Docker image build on every push/PR to `master` via GitHub Actions. The CI image is validated but is not yet published to a registry.
 
 Integration tests for full API flows are planned.
 
@@ -756,8 +819,10 @@ Integration tests for full API flows are planned.
 - [ ] **Admin role** for moderation
 - [ ] **Azure Blob Storage** provider
 - [ ] **Web / mobile clients**
-- [ ] **Docker & CI/CD deployment**
-- [ ] **Structured logging and production monitoring**
+- [x] **Dockerized API + SQL Server** with persistent volumes and automatic migrations
+- [x] **CI Docker image validation** after successful build/tests
+- [x] **Structured Serilog request logging** with trace/user correlation
+- [ ] **Centralized production monitoring and deployment**
 - [ ] **Integration tests**
 
 Success will be measured not only by report volume, but by **how many lost pets are reunited through the platform**.
@@ -779,6 +844,8 @@ Success will be measured not only by report volume, but by **how many lost pets 
 - File uploads validated by content type (magic bytes), size, and path traversal protection on delete
 - JWT secret and connection strings must be kept out of source control (User Secrets / environment variables)
 - Sensitive data (passwords, tokens) must not appear in logs
+- Unhandled exceptions return safe Problem Details with a trace ID while full details remain in server logs
+- Docker secrets are injected from an ignored `.env` file; `.env.example` contains placeholders only
 - Admin/moderation capabilities are planned for inappropriate or fraudulent reports
 
 ---
