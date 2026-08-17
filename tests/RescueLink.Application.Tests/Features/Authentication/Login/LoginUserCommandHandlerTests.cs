@@ -17,13 +17,18 @@ public class LoginUserCommandHandlerTests
         var userId = Guid.NewGuid();
         var expiresAt = DateTimeOffset.UtcNow.AddHours(1);
 
+        var refreshTokenExpiresAt =
+            DateTimeOffset.UtcNow.AddDays(7);
+
         var expectedResponse = new AuthenticationResponse(
             UserId: userId,
             FirstName: "İsmail",
             LastName: "Karasu",
             Email: "ismail@example.com",
             AccessToken: "generated-jwt-token",
-            ExpiresAt: expiresAt);
+            ExpiresAt: expiresAt,
+            RefreshToken: "generated-refresh-token",
+            RefreshTokenExpiresAt: refreshTokenExpiresAt);
 
         var identityServiceMock =
             new Mock<IIdentityService>();

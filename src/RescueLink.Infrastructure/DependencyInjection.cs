@@ -79,6 +79,18 @@ public static class DependencyInjection
                             ClaimTypes.Role
                     };
             });
+        services
+            .AddOptions<RefreshTokenOptions>()
+            .Bind(configuration.GetSection(
+                RefreshTokenOptions.SectionName))
+            .Validate(
+                options => options.ExpirationDays > 0,
+                "Refresh token expiration days must be greater than zero.")
+            .ValidateOnStart();
+
+        services.AddSingleton(TimeProvider.System);
+
+        services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddAuthorization();
 

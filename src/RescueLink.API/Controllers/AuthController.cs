@@ -1,8 +1,11 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RescueLink.API.Contracts.Authentication;
 using RescueLink.Application.Features.Authentication;
 using RescueLink.Application.Features.Authentication.Login;
+using RescueLink.Application.Features.Authentication.Logout;
+using RescueLink.Application.Features.Authentication.Refresh;
 using RescueLink.Application.Features.Authentication.Register;
 
 namespace RescueLink.API.Controllers;
@@ -74,5 +77,49 @@ public sealed class AuthController : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh(
+    RefreshTokenRequest request,
+    CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new RefreshTokenCommand(
+                request.RefreshToken),
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+
+        return result.Error.Code switch
+        {
+            "Authentication.InvalidRefreshToken" =>
+                Unauthorized(result.Error),
+
+            _ => BadRequest(result.Error)
+        };
+    }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(
+    RefreshTokenRequest request,
+    CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new LogoutCommand(
+                request.RefreshToken),
+            cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+
+        return BadRequest(result.Error);
     }
 }

@@ -12,6 +12,10 @@ public static class AuthenticationErrors
         "Authentication.InvalidCredentials",
         "Email or password is incorrect.");
 
+    public static readonly Error InvalidRefreshToken = new(
+        "Authentication.InvalidRefreshToken",
+        "The refresh token is invalid, expired or revoked.");
+
     public static Error RegistrationFailed(string description)
     {
         return new Error(

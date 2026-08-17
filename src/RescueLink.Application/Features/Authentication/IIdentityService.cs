@@ -20,4 +20,12 @@ public interface IIdentityService
     Task<UserContactInfo?> GetUserContactAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
+
+    Task<Result<AuthenticationResponse>> RefreshAsync(
+        string refreshToken,
+        CancellationToken cancellationToken = default);
+    Task<Result> LogoutAsync(
+        string refreshToken,
+        CancellationToken cancellationToken = default);
+
 }

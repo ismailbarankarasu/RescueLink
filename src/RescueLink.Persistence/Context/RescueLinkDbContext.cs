@@ -34,6 +34,8 @@ public sealed class RescueLinkDbContext
         Set<PetReportPhoto>();
     public DbSet<PetReportMatch> PetReportMatches =>
         Set<PetReportMatch>();
+    public DbSet<RefreshToken> RefreshTokens =>
+        Set<RefreshToken>();
 
     public override async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)
