@@ -11,4 +11,9 @@ public interface IUserNotificationRepository
     Task<UserNotification?> GetByIdAsync(
         Guid notificationId,
         CancellationToken cancellationToken = default);
+
+    Task<int> MarkAllAsReadAsync(
+        Guid userId,
+        DateTimeOffset readAt,
+        CancellationToken cancellationToken = default);
 }

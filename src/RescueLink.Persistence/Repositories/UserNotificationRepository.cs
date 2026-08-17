@@ -33,4 +33,29 @@ internal sealed class UserNotificationRepository(
                     notification.Id == notificationId,
                 cancellationToken);
     }
+    public async Task<int> MarkAllAsReadAsync(
+    Guid userId,
+    DateTimeOffset readAt,
+    CancellationToken cancellationToken = default)
+    {
+        return await dbContext.UserNotifications
+            .Where(notification =>
+                notification.UserId == userId &&
+                !notification.IsRead)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(
+                        notification =>
+                            notification.IsRead,
+                        true)
+                    .SetProperty(
+                        notification =>
+                            notification.ReadAt,
+                        readAt)
+                    .SetProperty(
+                        notification =>
+                            notification.UpdatedAt,
+                        readAt),
+                cancellationToken);
+    }
 }
