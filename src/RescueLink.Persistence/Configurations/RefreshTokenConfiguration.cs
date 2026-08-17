@@ -19,6 +19,10 @@ internal sealed class RefreshTokenConfiguration
             refreshToken.IsActive);
 
         builder.Property(refreshToken =>
+            refreshToken.RowVersion)
+            .IsRowVersion();
+
+        builder.Property(refreshToken =>
                 refreshToken.TokenHash)
             .HasMaxLength(64)
             .IsRequired();

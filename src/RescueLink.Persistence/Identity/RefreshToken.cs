@@ -9,7 +9,7 @@ public sealed class RefreshToken
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? RevokedAt { get; private set; }
     public string? ReplacedByTokenHash { get; private set; }
-
+    public byte[] RowVersion { get; private set; } = [];
     public bool IsActive =>
         RevokedAt is null &&
         ExpiresAt > DateTimeOffset.UtcNow;

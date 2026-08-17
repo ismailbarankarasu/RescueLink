@@ -229,8 +229,18 @@ public sealed class IdentityService : IIdentityService
             newRefreshToken,
             cancellationToken);
 
-        await _dbContext.SaveChangesAsync(
-            cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _dbContext.ChangeTracker.Clear();
+
+            return Result.Failure<AuthenticationResponse>(
+                AuthenticationErrors.InvalidRefreshToken);
+        }
 
         var response = new AuthenticationResponse(
             UserId: user.Id,
@@ -273,8 +283,17 @@ public sealed class IdentityService : IIdentityService
 
         storedRefreshToken.Revoke();
 
-        await _dbContext.SaveChangesAsync(
-            cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _dbContext.ChangeTracker.Clear();
+
+            return Result.Success();
+        }
 
         return Result.Success();
     }
