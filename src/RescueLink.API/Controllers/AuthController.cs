@@ -1,6 +1,8 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using RescueLink.API.Common;
 using RescueLink.API.Contracts.Authentication;
 using RescueLink.Application.Features.Authentication;
 using RescueLink.Application.Features.Authentication.Login;
@@ -21,7 +23,8 @@ public sealed class AuthController : ControllerBase
     {
         _sender = sender;
     }
-
+    [EnableRateLimiting(
+    RateLimitPolicies.Authentication)]
     [HttpPost("register")]
     public async Task<IActionResult> Register(
         [FromBody] RegisterUserCommand command,
@@ -57,7 +60,8 @@ public sealed class AuthController : ControllerBase
                 UserId = result.Value
             });
     }
-
+    [EnableRateLimiting(
+    RateLimitPolicies.Authentication)]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
         [FromBody] LoginUserCommand command,
@@ -78,7 +82,8 @@ public sealed class AuthController : ControllerBase
 
         return Ok(result.Value);
     }
-
+    [EnableRateLimiting(
+    RateLimitPolicies.Token)]
     [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(
@@ -103,7 +108,8 @@ public sealed class AuthController : ControllerBase
             _ => BadRequest(result.Error)
         };
     }
-
+    [EnableRateLimiting(
+    RateLimitPolicies.Token)]
     [AllowAnonymous]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(

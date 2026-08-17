@@ -1,10 +1,12 @@
-using RescueLink.Application;
-using RescueLink.Persistence;
+using RescueLink.API.Common;
+using RescueLink.API.ExceptionHandlers;
 using RescueLink.API.Services;
+using RescueLink.Application;
 using RescueLink.Application.Abstractions.Authentication;
 using RescueLink.Infrastructure;
-using RescueLink.API.ExceptionHandlers;
+using RescueLink.Persistence;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +32,65 @@ builder.Services
             new JsonStringEnumConverter());
     });
 
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode =
+        StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = async (
+        context,
+        cancellationToken) =>
+    {
+        context.HttpContext.Response.ContentType =
+            "application/json";
+
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new
+            {
+                code = "RateLimit.Exceeded",
+                message =
+                    "Too many requests. Please try again later."
+            },
+            cancellationToken);
+    };
+
+    options.AddPolicy(
+        RateLimitPolicies.Authentication,
+        httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey:
+                    httpContext.Connection
+                        .RemoteIpAddress?
+                        .ToString()
+                    ?? "unknown",
+                factory: _ =>
+                    new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true
+                    }));
+
+    options.AddPolicy(
+        RateLimitPolicies.Token,
+        httpContext =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey:
+                    httpContext.Connection
+                        .RemoteIpAddress?
+                        .ToString()
+                    ?? "unknown",
+                factory: _ =>
+                    new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true
+                    }));
+});
+
 builder.Services.AddOpenApi();
 
 builder.Services.AddProblemDetails();
@@ -47,6 +107,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+app.UseRouting();
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
