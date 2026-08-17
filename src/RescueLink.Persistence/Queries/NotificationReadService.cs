@@ -110,4 +110,32 @@ internal sealed class NotificationReadService(
         public DateTimeOffset? ReadAt { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
     }
+    public async Task<int> GetUnreadCountAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+        SELECT COUNT_BIG(1)
+        FROM dbo.UserNotifications
+        WHERE UserId = @UserId
+          AND IsRead = 0;
+        """;
+
+        await using var connection =
+            connectionFactory.CreateConnection();
+
+        var command = new CommandDefinition(
+            sql,
+            new
+            {
+                UserId = userId
+            },
+            cancellationToken: cancellationToken);
+
+        var count =
+            await connection.QuerySingleAsync<long>(
+                command);
+
+        return checked((int)count);
+    }
 }

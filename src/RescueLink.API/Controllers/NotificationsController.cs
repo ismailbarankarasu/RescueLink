@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RescueLink.Application.Common.Pagination;
 using RescueLink.Application.Features.Notifications.GetList;
+using RescueLink.Application.Features.Notifications.GetUnreadCount;
 using RescueLink.Application.Features.Notifications.MarkAsRead;
 
 namespace RescueLink.API.Controllers;
@@ -90,4 +91,26 @@ public sealed class NotificationsController(
             _ => BadRequest(result.Error)
         };
     }
+
+    [HttpGet("unread-count")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetUnreadCount(
+    CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(
+            new GetUnreadNotificationCountQuery(),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return Unauthorized(result.Error);
+        }
+
+        return Ok(new
+        {
+            Count = result.Value
+        });
+    }
+
 }

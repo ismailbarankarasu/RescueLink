@@ -11,4 +11,8 @@ public interface INotificationReadService
         int pageSize,
         bool unreadOnly,
         CancellationToken cancellationToken = default);
+
+    Task<int> GetUnreadCountAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }
