@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # User uploaded pet report photos
 src/RescueLink.API/wwwroot/uploads/
+
+# Ignore legacy Visual Studio solution file
+/RescueLink.sln
