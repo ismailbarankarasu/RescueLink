@@ -31,6 +31,30 @@ builder.Services
         options.JsonSerializerOptions.Converters.Add(
             new JsonStringEnumConverter());
     });
+var allowedOrigins =
+    builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>()
+    ?? [];
+
+if (allowedOrigins.Length == 0)
+{
+    throw new InvalidOperationException(
+        "At least one CORS origin must be configured.");
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        CorsPolicies.Frontend,
+        policy =>
+        {
+            policy
+                .WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -95,8 +119,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddProblemDetails();
 
-builder.Services.AddExceptionHandler<
-    ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -109,6 +132,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseCors(CorsPolicies.Frontend);
 app.UseRateLimiter();
 
 app.UseAuthentication();
