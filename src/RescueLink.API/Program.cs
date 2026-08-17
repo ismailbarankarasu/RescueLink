@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RescueLink.API.Common;
 using RescueLink.API.ExceptionHandlers;
 using RescueLink.API.Services;
@@ -5,6 +7,7 @@ using RescueLink.Application;
 using RescueLink.Application.Abstractions.Authentication;
 using RescueLink.Infrastructure;
 using RescueLink.Persistence;
+using RescueLink.Persistence.Context;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
@@ -117,6 +120,13 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddOpenApi();
 
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<RescueLinkDbContext>(
+        name: "sql-server",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: ["ready"]);
+
 builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
@@ -138,6 +148,22 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate = registration =>
+            registration.Tags.Contains("ready")
+    });
+
+app.MapControllers();
 app.MapControllers();
 
 app.Run();
