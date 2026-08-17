@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   build-and-test:
+    name: Build and test
     runs-on: ubuntu-latest
 
     steps:
@@ -30,3 +31,15 @@ jobs:
 
       - name: Run tests
         run: dotnet test RescueLink.slnx --configuration Release --no-build --verbosity normal
+
+  docker-build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build API Docker image
+        run: docker build --tag rescuelink-api:ci .
