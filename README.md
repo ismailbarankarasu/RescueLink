@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: authentication, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, automatic resolution after mutual confirmation, and in-app match suggestion notifications. Confirmed-match notifications, explainable scoring, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: authentication, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, automatic resolution after mutual confirmation, and in-app match suggestion/confirmation notifications with unread counts and bulk read operations. Explainable scoring, realtime delivery, and production deployment remain on the roadmap.
 
 ---
 
@@ -111,7 +111,7 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **Automatic match resolution** | Both reports become `Resolved` after both owners confirm |
 | **Report discovery** | Public filtering/pagination plus authenticated owner-only `mine` listing |
 | **Match recalculation** | Updating an active report removes stale suggestions and recalculates candidates |
-| **In-app notifications** | Match suggestion notifications, pagination, unread filtering, and read tracking |
+| **In-app notifications** | Suggested/confirmed match alerts, pagination, unread filtering/count, single read, and bulk read |
 | **Photo management** | Up to 5 photos; primary selection; delete; signature-validated local storage |
 | **CQRS + MediatR** | Commands, queries, pipeline behaviors, and Domain Event notifications |
 | **FluentValidation** | Request validation via pipeline behavior |
@@ -124,7 +124,7 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | Feature | Description |
 |--------|-------------|
 | **Explainable matches** | Human-readable reasons in addition to the implemented score |
-| **Explainable notifications** | Confirmed-match messages and richer notification content |
+| **Explainable notifications** | Localized, human-readable notification content and match reasons |
 | **Advanced filtering** | Add breed and date-range filters to implemented pagination |
 | **Realtime delivery** | SignalR, email, or push delivery on top of persisted in-app notifications |
 | **Cloud storage** | Azure Blob (or similar) via `IFileStorageService` |
@@ -431,7 +431,9 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/api/notifications` | Required | Paginated owner notifications; supports `unreadOnly` |
+| GET | `/api/notifications/unread-count` | Required | Return the caller's unread notification count |
 | PATCH | `/api/notifications/{id}/read` | Required | Idempotently mark an owned notification as read |
+| PATCH | `/api/notifications/read-all` | Required | Mark all caller notifications as read in one bulk update |
 
 **Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report. Notification queries are always scoped to the authenticated user, and only the owner can mark a notification as read.
 
@@ -669,7 +671,7 @@ Examples of covered behavior:
 - Automatic report resolution after mutual confirmation
 - Report update authorization and active-state rules
 - Match recalculation and stale-suggestion cleanup flow
-- Notification entity rules, event observers, owner isolation, listing, and mark-as-read handlers
+- Notification entity rules, suggested/confirmed event observers, owner isolation, listing, unread count, single read, and bulk-read handlers
 
 CI runs build and tests on every push/PR to `master` via GitHub Actions.
 
@@ -688,7 +690,7 @@ Integration tests for full API flows are planned.
 - [x] **Owner report listing** with status/type filters
 - [x] **Update active reports** with automatic match recalculation
 - [x] **In-app match suggestion notifications** with read tracking
-- [ ] **Confirmed-match notifications and unread-count endpoint**
+- [x] **Confirmed-match notifications, unread-count endpoint, and bulk read**
 - [ ] **Delete/archive reports**
 - [ ] **Realtime/email/push delivery** (SignalR → email/push)
 - [ ] **Admin role** for moderation
