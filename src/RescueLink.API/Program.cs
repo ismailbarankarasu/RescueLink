@@ -10,8 +10,20 @@ using RescueLink.Persistence;
 using RescueLink.Persistence.Context;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog(
+    (context, services, configuration) =>
+    {
+        configuration
+            .ReadFrom.Configuration(
+                context.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .WriteTo.Console();
+    });
 
 // Add services to the container.
 builder.Services.AddHttpContextAccessor();
@@ -131,6 +143,49 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 var app = builder.Build();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.MessageTemplate =
+        "HTTP {RequestMethod} {RequestPath} responded {StatusCode} " +
+        "in {Elapsed:0.0000} ms | TraceId: {TraceId} | UserId: {UserId}";
+
+    options.GetLevel = (
+        httpContext,
+        elapsed,
+        exception) =>
+    {
+        if (exception is not null ||
+            httpContext.Response.StatusCode >= 500)
+        {
+            return Serilog.Events.LogEventLevel.Error;
+        }
+
+        if (httpContext.Response.StatusCode >= 400)
+        {
+            return Serilog.Events.LogEventLevel.Warning;
+        }
+
+        return Serilog.Events.LogEventLevel.Information;
+    };
+
+    options.EnrichDiagnosticContext = (
+        diagnosticContext,
+        httpContext) =>
+    {
+        var userId = httpContext.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? "Anonymous";
+
+        diagnosticContext.Set(
+            "TraceId",
+            httpContext.TraceIdentifier);
+
+        diagnosticContext.Set(
+            "UserId",
+            userId);
+    };
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
