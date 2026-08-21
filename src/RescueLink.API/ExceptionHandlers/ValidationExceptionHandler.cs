@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using RescueLink.Application.Localization;
 
 namespace RescueLink.API.ExceptionHandlers;
 
@@ -12,7 +13,8 @@ public sealed class ValidationExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (exception is not ValidationException validationException)
+        if (exception is not ValidationException
+            validationException)
         {
             return false;
         }
@@ -22,17 +24,28 @@ public sealed class ValidationExceptionHandler
             .ToDictionary(
                 group => group.Key,
                 group => group
-                    .Select(error => error.ErrorMessage)
+                    .Select(error =>
+                        error.ErrorMessage)
                     .Distinct()
                     .ToArray());
 
-        var problemDetails = new ValidationProblemDetails(errors)
-        {
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Validation failed.",
-            Detail = "One or more validation errors occurred.",
-            Instance = httpContext.Request.Path
-        };
+        var problemDetails =
+            new ValidationProblemDetails(errors)
+            {
+                Status =
+                    StatusCodes.Status400BadRequest,
+
+                Title =
+                    ValidationMessages
+                        .ValidationFailedTitle,
+
+                Detail =
+                    ValidationMessages
+                        .ValidationFailedDetail,
+
+                Instance =
+                    httpContext.Request.Path
+            };
 
         httpContext.Response.StatusCode =
             StatusCodes.Status400BadRequest;

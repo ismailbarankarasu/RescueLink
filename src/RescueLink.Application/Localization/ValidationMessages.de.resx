@@ -118,15 +118,21 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="CountryCodeInvalid" xml:space="preserve">
-    <value>Der Ländercode muss ein zweistelliger ISO-Code sein</value>
+    <value>Der Ländercode muss ein zweistelliger ISO-Code sein.</value>
   </data>
   <data name="PhoneNumberInvalid" xml:space="preserve">
-    <value>Die Telefonnummer muss das E.164-Format verwenden, zum Beispiel +905551234567</value>
+    <value>Die Telefonnummer muss das E.164-Format verwenden, zum Beispiel +905551234567.</value>
   </data>
   <data name="PreferredLanguageInvalid" xml:space="preserve">
-    <value>Die bevorzugte Sprache muss ein gültiger Kulturcode sein</value>
+    <value>Die bevorzugte Sprache muss ein gültiger Kulturcode sein.</value>
   </data>
   <data name="TimeZoneInvalid" xml:space="preserve">
-    <value>Die Zeitzonen-ID ist ungültig</value>
+    <value>Die Zeitzonen-ID ist ungültig.</value>
+  </data>
+  <data name="ValidationFailedDetail" xml:space="preserve">
+    <value>Ein oder mehrere Validierungsfehler sind aufgetreten.</value>
+  </data>
+  <data name="ValidationFailedTitle" xml:space="preserve">
+    <value>Validierung fehlgeschlagen.</value>
   </data>
 </root>

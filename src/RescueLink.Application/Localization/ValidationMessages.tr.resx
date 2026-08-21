@@ -118,15 +118,21 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="CountryCodeInvalid" xml:space="preserve">
-    <value>Ülke kodu iki harfli ISO kodu olmalıdır</value>
+    <value>Ülke kodu iki harfli ISO kodu olmalıdır.</value>
   </data>
   <data name="PhoneNumberInvalid" xml:space="preserve">
-    <value>Telefon numarası +905551234567 örneğindeki gibi E.164 formatında olmalıdır</value>
+    <value>Telefon numarası +905551234567 örneğindeki gibi E.164 formatında olmalıdır.</value>
   </data>
   <data name="PreferredLanguageInvalid" xml:space="preserve">
-    <value>Tercih edilen dil geçerli bir kültür kodu olmalıdır</value>
+    <value>Tercih edilen dil geçerli bir kültür kodu olmalıdır.</value>
   </data>
   <data name="TimeZoneInvalid" xml:space="preserve">
-    <value>Zaman dilimi kimliği geçersizdir</value>
+    <value>Zaman dilimi kimliği geçersizdir.</value>
+  </data>
+  <data name="ValidationFailedDetail" xml:space="preserve">
+    <value>Bir veya daha fazla doğrulama hatası oluştu.</value>
+  </data>
+  <data name="ValidationFailedTitle" xml:space="preserve">
+    <value>Doğrulama başarısız oldu.</value>
   </data>
 </root>

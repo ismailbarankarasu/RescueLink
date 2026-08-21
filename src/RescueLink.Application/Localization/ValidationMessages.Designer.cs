@@ -61,7 +61,7 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Country code must be a two-letter ISO code.
+        ///   Looks up a localized string similar to Country code must be a two-letter ISO code..
         /// </summary>
         public static string CountryCodeInvalid {
             get {
@@ -70,7 +70,7 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Phone number must use E.164 format, for example +905551234567.
+        ///   Looks up a localized string similar to Phone number must use E.164 format, for example +905551234567..
         /// </summary>
         public static string PhoneNumberInvalid {
             get {
@@ -79,7 +79,7 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Preferred language must be a valid culture code.
+        ///   Looks up a localized string similar to Preferred language must be a valid culture code..
         /// </summary>
         public static string PreferredLanguageInvalid {
             get {
@@ -88,11 +88,29 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Time zone ID is invalid.
+        ///   Looks up a localized string similar to Time zone ID is invalid..
         /// </summary>
         public static string TimeZoneInvalid {
             get {
                 return ResourceManager.GetString("TimeZoneInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to One or more validation errors occurred..
+        /// </summary>
+        public static string ValidationFailedDetail {
+            get {
+                return ResourceManager.GetString("ValidationFailedDetail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Validation failed..
+        /// </summary>
+        public static string ValidationFailedTitle {
+            get {
+                return ResourceManager.GetString("ValidationFailedTitle", resourceCulture);
             }
         }
     }

@@ -209,7 +209,24 @@ public sealed class UserProfileEndpointTests
 
         using var invalidJson =
             JsonDocument.Parse(invalidUpdateBody);
+        invalidJson.RootElement
+        .GetProperty("title")
+        .GetString()
+        .Should()
+        .Be("Validierung fehlgeschlagen.");
 
+        invalidJson.RootElement
+            .GetProperty("detail")
+            .GetString()
+            .Should()
+            .Be(
+                "Ein oder mehrere Validierungsfehler sind aufgetreten.");
+
+        invalidJson.RootElement
+            .GetProperty("status")
+            .GetInt32()
+            .Should()
+            .Be((int)HttpStatusCode.BadRequest);
         invalidJson.RootElement
             .TryGetProperty(
                 "errors",
