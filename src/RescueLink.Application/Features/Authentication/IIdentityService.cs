@@ -28,4 +28,13 @@ public interface IIdentityService
         string refreshToken,
         CancellationToken cancellationToken = default);
 
+    Task<UserProfileInfo?> GetUserProfileAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<Result> UpdateUserProfileAsync(
+        Guid userId,
+        UpdateUserProfileInfo profile,
+        CancellationToken cancellationToken = default);
+
 }

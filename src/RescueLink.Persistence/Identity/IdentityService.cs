@@ -4,7 +4,9 @@ using RescueLink.Application.Abstractions.Authentication;
 using RescueLink.Application.Common.Results;
 using RescueLink.Application.Features.Authentication;
 using RescueLink.Application.Features.Authentication.Common;
+using RescueLink.Application.Features.Users;
 using RescueLink.Persistence.Context;
+using System.Globalization;
 
 namespace RescueLink.Persistence.Identity;
 
@@ -293,6 +295,107 @@ public sealed class IdentityService : IIdentityService
             _dbContext.ChangeTracker.Clear();
 
             return Result.Success();
+        }
+
+        return Result.Success();
+    }
+    public async Task<UserProfileInfo?> GetUserProfileAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return null;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(
+            userId.ToString());
+
+        if (user is null ||
+            string.IsNullOrWhiteSpace(user.Email))
+        {
+            return null;
+        }
+
+        return new UserProfileInfo(
+            UserId: user.Id,
+            FirstName: user.FirstName,
+            LastName: user.LastName,
+            Email: user.Email,
+            PhoneNumber: user.PhoneNumber,
+            CountryCode: user.CountryCode,
+            City: user.City,
+            PreferredLanguage: user.PreferredLanguage,
+            TimeZoneId: user.TimeZoneId,
+            CreatedAt: user.CreatedAt);
+    }
+    private static string? NormalizeOptionalText(
+    string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+    public async Task<Result> UpdateUserProfileAsync(
+    Guid userId,
+    UpdateUserProfileInfo profile,
+    CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            return Result.Failure(
+                UserProfileErrors.NotFound);
+        }
+
+        ArgumentNullException.ThrowIfNull(profile);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(
+            userId.ToString());
+
+        if (user is null)
+        {
+            return Result.Failure(
+                UserProfileErrors.NotFound);
+        }
+
+        user.FirstName = profile.FirstName.Trim();
+        user.LastName = profile.LastName.Trim();
+
+        user.PhoneNumber = NormalizeOptionalText(
+            profile.PhoneNumber);
+
+        user.CountryCode =
+            NormalizeOptionalText(profile.CountryCode)?
+                .ToUpperInvariant();
+
+        user.City =
+            NormalizeOptionalText(profile.City);
+
+        user.PreferredLanguage =
+            CultureInfo.GetCultureInfo(
+                profile.PreferredLanguage.Trim())
+            .Name;
+
+        user.TimeZoneId =
+            profile.TimeZoneId.Trim();
+
+        var identityResult =
+            await _userManager.UpdateAsync(user);
+
+        if (!identityResult.Succeeded)
+        {
+            var description = string.Join(
+                " ",
+                identityResult.Errors.Select(
+                    error => error.Description));
+
+            return Result.Failure(
+                UserProfileErrors.UpdateFailed(
+                    description));
         }
 
         return Result.Success();
