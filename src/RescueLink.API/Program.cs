@@ -12,6 +12,8 @@ using RescueLink.Persistence.Context;
 using Serilog;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Localization;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -140,6 +142,34 @@ builder.Services
         failureStatus: HealthStatus.Unhealthy,
         tags: ["ready"]);
 
+var supportedCultures = new[]
+{
+    new CultureInfo("en"),
+    new CultureInfo("tr"),
+    new CultureInfo("de")
+};
+
+builder.Services.Configure<RequestLocalizationOptions>(
+    options =>
+    {
+        options.DefaultRequestCulture =
+            new RequestCulture("en");
+
+        options.SupportedCultures =
+            supportedCultures;
+
+        options.SupportedUICultures =
+            supportedCultures;
+
+        options.ApplyCurrentCultureToResponseHeaders =
+            true;
+
+        options.RequestCultureProviders =
+        [
+            new AcceptLanguageHeaderRequestCultureProvider()
+        ];
+    });
+
 builder.Services.AddProblemDetails();
 
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
@@ -200,6 +230,7 @@ app.UseSerilogRequestLogging(options =>
             userId);
     };
 });
+app.UseRequestLocalization();
 app.UseExceptionHandler();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

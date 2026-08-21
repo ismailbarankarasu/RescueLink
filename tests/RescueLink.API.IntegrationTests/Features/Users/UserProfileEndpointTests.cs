@@ -127,7 +127,8 @@ public sealed class UserProfileEndpointTests
         using var getJson =
             JsonDocument.Parse(getBody);
 
-        var profile = getJson.RootElement;
+        var profile =
+            getJson.RootElement;
 
         profile.GetProperty("firstName")
             .GetString()
@@ -168,6 +169,17 @@ public sealed class UserProfileEndpointTests
             .GetString()
             .Should()
             .Be("Europe/Istanbul");
+
+        // Arrange - Almanca hata mesajı iste
+        client.DefaultRequestHeaders
+            .AcceptLanguage
+            .Clear();
+
+        client.DefaultRequestHeaders
+            .AcceptLanguage
+            .Add(
+                new StringWithQualityHeaderValue("de"));
+
         // Act - Geçersiz profil güncellemesi
         var invalidUpdateResponse =
             await client.PutAsJsonAsync(
@@ -193,11 +205,15 @@ public sealed class UserProfileEndpointTests
             HttpStatusCode.BadRequest,
             $"invalid update response: {invalidUpdateBody}");
 
+        
+
         using var invalidJson =
             JsonDocument.Parse(invalidUpdateBody);
 
         invalidJson.RootElement
-            .TryGetProperty("errors", out var errors)
+            .TryGetProperty(
+                "errors",
+                out var errors)
             .Should()
             .BeTrue();
 
@@ -218,6 +234,32 @@ public sealed class UserProfileEndpointTests
                 out _)
             .Should()
             .BeTrue();
+
+        var phoneNumberErrors =
+            errors.GetProperty("PhoneNumber")
+                .EnumerateArray()
+                .Select(element =>
+                    element.GetString())
+                .ToArray();
+
+        phoneNumberErrors.Should().Contain(
+            message =>
+            message != null &&
+            message.Contains(
+                "Die Telefonnummer muss das E.164-Format verwenden"));
+
+        var timeZoneErrors =
+            errors.GetProperty("TimeZoneId")
+                .EnumerateArray()
+                .Select(element =>
+                    element.GetString())
+                .ToArray();
+
+        timeZoneErrors.Should().Contain(
+            message =>
+            message != null &&
+            message.Contains(
+                "Die Zeitzonen-ID ist ungültig"));
 
         // Act - Profili tekrar getir
         var unchangedResponse =

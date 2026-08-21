@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using FluentValidation;
+using RescueLink.Application.Localization;
 
 namespace RescueLink.Application
     .Features.Users.UpdateCurrent;
@@ -22,8 +23,8 @@ public sealed class UpdateCurrentUserProfileCommandValidator
             .When(command =>
                 !string.IsNullOrWhiteSpace(
                     command.PhoneNumber))
-            .WithMessage(
-                "Phone number must use E.164 format, for example +905551234567.");
+            .WithMessage(_ =>
+                ValidationMessages.PhoneNumberInvalid);
 
         RuleFor(command => command.CountryCode)
             .Length(2)
@@ -31,8 +32,8 @@ public sealed class UpdateCurrentUserProfileCommandValidator
             .When(command =>
                 !string.IsNullOrWhiteSpace(
                     command.CountryCode))
-            .WithMessage(
-                "Country code must be a two-letter ISO code.");
+            .WithMessage(_ =>
+                ValidationMessages.CountryCodeInvalid);
 
         RuleFor(command => command.City)
             .MaximumLength(100)
@@ -44,20 +45,26 @@ public sealed class UpdateCurrentUserProfileCommandValidator
             .NotEmpty()
             .MaximumLength(10)
             .Must(BeValidCulture)
-            .WithMessage(
-                "Preferred language must be a valid culture code.");
+            .WithMessage(_ =>
+                ValidationMessages
+                    .PreferredLanguageInvalid);
 
         RuleFor(command => command.TimeZoneId)
             .NotEmpty()
             .MaximumLength(100)
             .Must(BeValidTimeZone)
-            .WithMessage(
-                "Time zone ID is invalid.");
+            .WithMessage(_ =>
+                ValidationMessages.TimeZoneInvalid);
     }
 
     private static bool BeValidCulture(
-        string cultureName)
+        string? cultureName)
     {
+        if (string.IsNullOrWhiteSpace(cultureName))
+        {
+            return false;
+        }
+
         try
         {
             _ = CultureInfo.GetCultureInfo(
@@ -72,8 +79,13 @@ public sealed class UpdateCurrentUserProfileCommandValidator
     }
 
     private static bool BeValidTimeZone(
-        string timeZoneId)
+        string? timeZoneId)
     {
+        if (string.IsNullOrWhiteSpace(timeZoneId))
+        {
+            return false;
+        }
+
         try
         {
             _ = TimeZoneInfo.FindSystemTimeZoneById(
