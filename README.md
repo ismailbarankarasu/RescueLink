@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, and in-app notifications with unread counts and bulk read operations. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, global user profile management, English/Turkish/German request localization, localized validation Problem Details, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, in-app notifications, Docker support, and SQL Server-backed integration tests. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
 
 ---
 
@@ -79,6 +79,9 @@ RescueLink uses a unified **PetReport** model for both Lost and Found reports. E
 Today, the API supports:
 
 - User registration and JWT-based login
+- Global user profiles with E.164 phone numbers, ISO country codes, city, preferred language, and IANA time zones
+- Request localization through `Accept-Language` with English, Turkish, and German validation responses
+- Localized RFC-compatible validation Problem Details (`title`, `detail`, and field messages)
 - Hashed refresh-token persistence, single-use rotation, replay protection, logout/revocation, and optimistic concurrency control
 - Per-IP rate limiting for authentication/token endpoints and configuration-based frontend CORS
 - Creating Lost/Found reports with coordinates
@@ -113,6 +116,8 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **API abuse protection** | Separate per-IP rate limits for authentication and token operations |
 | **Frontend-ready CORS** | Configuration-based allowlist for trusted Angular origins |
 | **Health checks** | Independent liveness plus SQL Server-backed readiness endpoints |
+| **Global user profiles** | Authenticated profile retrieval/update with E.164 phone, ISO country, language, city, and IANA time-zone fields |
+| **API localization** | `Accept-Language` negotiation with English, Turkish, and German validation messages and Problem Details |
 | **Structured observability** | Serilog request logs, trace/user correlation, status-aware levels, and safe global exception handling |
 | **Dockerized runtime** | Multi-stage .NET 10 image, SQL Server Compose service, automatic migrations, and persistent SQL/upload volumes |
 | **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
@@ -127,7 +132,7 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **CQRS + MediatR** | Commands, queries, pipeline behaviors, and Domain Event notifications |
 | **FluentValidation** | Request validation via pipeline behavior |
 | **Domain rules** | Rich `PetReport` aggregate (resolve/cancel rules, photo limits) |
-| **Unit tests** | Domain and Application layer test coverage |
+| **Automated tests** | Domain, Application, API, and SQL Server Testcontainers integration coverage |
 | **CI pipeline** | GitHub Actions restore, Release build, tests, and Docker image validation on .NET 10 |
 
 ### Planned
@@ -326,7 +331,8 @@ Owner-scoped UserNotifications are persisted
 | Runtime | .NET 10 |
 | Web framework | ASP.NET Core Web API |
 | Patterns | Clean Architecture, CQRS, MediatR, Observer via Domain Events |
-| Validation | FluentValidation |
+| Validation | FluentValidation with localized resource messages |
+| Localization | ASP.NET Core Request Localization (`en`, `tr`, `de`) and `.resx` resources |
 | ORM | Entity Framework Core 10 |
 | Geospatial | NetTopologySuite, SQL Server `geography` |
 | Read queries | Dapper (nearby search, matching candidates, match listing, report discovery, owner reports, notifications) |
@@ -336,7 +342,7 @@ Owner-scoped UserNotifications are persisted
 | Operations | Liveness/readiness health checks, Serilog structured request logging, and safe global exception handling |
 | Containers | Multi-stage Dockerfile, Docker Compose, SQL Server 2022, persistent volumes |
 | Storage | Local filesystem (`IFileStorageService`) |
-| Testing | xUnit, Moq, FluentAssertions (Domain + Application + API tests) |
+| Testing | xUnit, Moq, FluentAssertions, WebApplicationFactory, Testcontainers for SQL Server |
 | CI | GitHub Actions (.NET build/test + Docker image build) |
 | API exploration | OpenAPI (Development), Postman collection |
 
@@ -348,14 +354,15 @@ Owner-scoped UserNotifications are persisted
 RescueLink/
 ├── src/
 │   ├── RescueLink.API/              # Web API, controllers, Program.cs
-│   ├── RescueLink.Application/      # Features, CQRS, validation, abstractions
+│   ├── RescueLink.Application/      # Features, CQRS, validation, localization, abstractions
 │   ├── RescueLink.Domain/           # PetReport, enums, GeoLocation
 │   ├── RescueLink.Infrastructure/   # JWT, LocalFileStorageService
 │   └── RescueLink.Persistence/      # DbContext, migrations, repositories, Dapper
 ├── tests/
 │   ├── RescueLink.Domain.Tests/
 │   ├── RescueLink.Application.Tests/
-│   └── RescueLink.API.Tests/        # HTTP exception handling tests
+│   ├── RescueLink.API.Tests/        # HTTP exception handling tests
+│   └── RescueLink.API.IntegrationTests/ # Real HTTP + SQL Server container flows
 ├── postman/                         # API request collection
 ├── .github/workflows/dotnet.yml     # .NET + Docker CI pipeline
 ├── Dockerfile                       # Multi-stage .NET 10 API image
@@ -425,6 +432,15 @@ Value object with validated latitude (-90…90) and longitude (-180…180).
 | POST | `/api/auth/login` | Anonymous | Login and receive access + refresh tokens |
 | POST | `/api/auth/refresh` | Anonymous | Rotate a valid refresh token and issue a new token pair |
 | POST | `/api/auth/logout` | Anonymous | Idempotently revoke a refresh token |
+
+### Current User (`/api/users`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/users/me` | Required | Return the authenticated user's global profile |
+| PUT | `/api/users/me` | Required | Update names, phone, country, city, language, and time zone |
+
+Profile validation follows global standards: E.164 phone numbers, two-letter ISO country codes, valid culture codes, and IANA time-zone identifiers. Validation responses honor the request's `Accept-Language` header for `en`, `tr`, and `de`.
 
 ### Pet Reports (`/api/pet-reports`)
 
@@ -739,6 +755,7 @@ Migrations include:
 - Two-sided owner confirmation fields
 - `UserNotifications` with Identity ownership, unread/read state, and supporting index
 - `RefreshTokens` with hashed values, expiry/revocation metadata, replacement chains, unique hash index, and SQL Server `rowversion`
+- Global Identity profile fields for phone, country, city, preferred language, and time zone
 
 Nearby search, matching candidate discovery, match listing, public/owner report discovery, and notification listing use **Dapper** against the same SQL Server database for efficient read queries.
 
@@ -772,6 +789,7 @@ Test projects:
 | `RescueLink.Domain.Tests` | PetReport rules, GeoLocation, entity behavior |
 | `RescueLink.Application.Tests` | Handlers, validators, MediatR pipeline |
 | `RescueLink.API.Tests` | Safe global exception responses and exception logging |
+| `RescueLink.API.IntegrationTests` | Real HTTP pipeline and SQL Server flows through WebApplicationFactory + Testcontainers |
 
 Examples of covered behavior:
 
@@ -790,10 +808,14 @@ Examples of covered behavior:
 - Match recalculation and stale-suggestion cleanup flow
 - Notification entity rules, suggested/confirmed event observers, owner isolation, listing, unread count, single read, and bulk-read handlers
 - Confirmed-match contact authorization and disclosure rules
+- Health liveness/readiness behavior against a real SQL Server container
+- Register/login, refresh-token rotation, logout, and authorization over HTTP
+- Report creation, retrieval, ownership protection, and spatial nearby ordering
+- Global user profile update/retrieval, normalization, invalid-update protection, and localized German validation responses
 
 CI runs restore, Release build, all tests, and a Linux Docker image build on every push/PR to `master` via GitHub Actions. The CI image is validated but is not yet published to a registry.
 
-Integration tests for full API flows are planned.
+Integration tests run against an isolated SQL Server 2022 container and apply the real EF Core migrations before exercising the HTTP API.
 
 ---
 
@@ -814,6 +836,8 @@ Integration tests for full API flows are planned.
 - [x] **Per-IP authentication/token rate limiting**
 - [x] **Restricted frontend CORS policy**
 - [x] **Liveness and SQL Server readiness health checks**
+- [x] **Global user profile management** with international phone/country/language/time-zone fields
+- [x] **English, Turkish, and German validation localization** via `Accept-Language`
 - [ ] **Delete/archive reports**
 - [ ] **Realtime/email/push delivery** (SignalR → email/push)
 - [ ] **Admin role** for moderation
@@ -823,7 +847,7 @@ Integration tests for full API flows are planned.
 - [x] **CI Docker image validation** after successful build/tests
 - [x] **Structured Serilog request logging** with trace/user correlation
 - [ ] **Centralized production monitoring and deployment**
-- [ ] **Integration tests**
+- [x] **SQL Server Testcontainers integration tests** for health, authentication, authorization, reports, spatial queries, and user profiles
 
 Success will be measured not only by report volume, but by **how many lost pets are reunited through the platform**.
 
