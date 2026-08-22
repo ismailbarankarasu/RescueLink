@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RescueLink.API.Common;
 using RescueLink.Application.Features.PetReportMatches.Confirm;
 using RescueLink.Application.Features.PetReportMatches.GetContact;
 using RescueLink.Application.Features.PetReportMatches.Reject;
@@ -10,8 +11,19 @@ namespace RescueLink.API.Controllers;
 [ApiController]
 [Route("api/pet-report-matches")]
 [Authorize]
-public sealed class PetReportMatchesController(ISender sender): ControllerBase
+public sealed class PetReportMatchesController
+    : ApiControllerBase
 {
+    private readonly ISender _sender;
+
+    public PetReportMatchesController(
+        ISender sender,
+        IErrorLocalizer errorLocalizer)
+        : base(errorLocalizer)
+    {
+        _sender = sender;
+    }
+
     [HttpPatch("{matchId:guid}/confirm")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -24,35 +36,19 @@ public sealed class PetReportMatchesController(ISender sender): ControllerBase
         CancellationToken cancellationToken)
     {
         var command =
-            new ConfirmPetReportMatchCommand(matchId);
+            new ConfirmPetReportMatchCommand(
+                matchId);
 
-        var result = await sender.Send(
+        var result = await _sender.Send(
             command,
             cancellationToken);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            return NoContent();
+            return HandleFailure(result.Error);
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReportMatch.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReportMatch.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReportMatch.NotSuggested" =>
-                Conflict(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return NoContent();
     }
 
     [HttpPatch("{matchId:guid}/reject")]
@@ -63,77 +59,49 @@ public sealed class PetReportMatchesController(ISender sender): ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Reject(
-    Guid matchId,
-    CancellationToken cancellationToken)
+        Guid matchId,
+        CancellationToken cancellationToken)
     {
         var command =
-            new RejectPetReportMatchCommand(matchId);
+            new RejectPetReportMatchCommand(
+                matchId);
 
-        var result = await sender.Send(
+        var result = await _sender.Send(
             command,
             cancellationToken);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            return NoContent();
+            return HandleFailure(result.Error);
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReportMatch.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReportMatch.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReportMatch.NotSuggested" =>
-                Conflict(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return NoContent();
     }
 
-
-    [Authorize]
     [HttpGet("{matchId:guid}/contact")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> GetContact(
-    Guid matchId,
-    CancellationToken cancellationToken)
+        Guid matchId,
+        CancellationToken cancellationToken)
     {
-        var result = await sender.Send(
-            new GetMatchContactQuery(matchId),
+        var query =
+            new GetMatchContactQuery(
+                matchId);
+
+        var result = await _sender.Send(
+            query,
             cancellationToken);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            return Ok(result.Value);
+            return HandleFailure(result.Error);
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(result.Error),
-
-            "PetReportMatch.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReportMatch.RelatedReportsNotFound" =>
-                NotFound(result.Error),
-
-            "PetReportMatch.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReportMatch.ContactNotAvailable" =>
-                Conflict(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return Ok(result.Value);
     }
 }

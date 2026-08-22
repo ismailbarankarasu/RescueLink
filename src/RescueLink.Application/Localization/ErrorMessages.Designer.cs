@@ -115,6 +115,60 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Contact information is available only after mutual confirmation..
+        /// </summary>
+        public static string PetReportMatchContactNotAvailable {
+            get {
+                return ResourceManager.GetString("PetReportMatchContactNotAvailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You are not allowed to manage this match..
+        /// </summary>
+        public static string PetReportMatchForbidden {
+            get {
+                return ResourceManager.GetString("PetReportMatchForbidden", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The pet report match was not found..
+        /// </summary>
+        public static string PetReportMatchNotFound {
+            get {
+                return ResourceManager.GetString("PetReportMatchNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only suggested matches can be modified..
+        /// </summary>
+        public static string PetReportMatchNotSuggested {
+            get {
+                return ResourceManager.GetString("PetReportMatchNotSuggested", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The reports related to this match could not be found..
+        /// </summary>
+        public static string PetReportMatchRelatedReportsNotFound {
+            get {
+                return ResourceManager.GetString("PetReportMatchRelatedReportsNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Both pet reports must be active to confirm the match..
+        /// </summary>
+        public static string PetReportMatchReportsNotActive {
+            get {
+                return ResourceManager.GetString("PetReportMatchReportsNotActive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to A pet report can contain at most {0} photos..
         /// </summary>
         public static string PetReportMaximumPhotoCountReached {

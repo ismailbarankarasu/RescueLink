@@ -54,6 +54,29 @@ internal sealed class ErrorLocalizer
             "PetReport.NotActive" =>
                 ErrorMessages
                     .PetReportNotActive,
+            "PetReportMatch.Forbidden" =>
+                ErrorMessages
+                    .PetReportMatchForbidden,
+
+            "PetReportMatch.NotSuggested" =>
+                ErrorMessages
+                    .PetReportMatchNotSuggested,
+
+            "PetReportMatch.ReportsNotActive" =>
+                ErrorMessages
+                    .PetReportMatchReportsNotActive,
+
+            "PetReportMatch.ContactNotAvailable" =>
+                ErrorMessages
+                    .PetReportMatchContactNotAvailable,
+
+            "PetReportMatch.RelatedReportsNotFound" =>
+                ErrorMessages
+                    .PetReportMatchRelatedReportsNotFound,
+
+            "PetReportMatch.NotFound" =>
+                ErrorMessages
+                    .PetReportMatchNotFound,
 
             _ => error.Message
         };

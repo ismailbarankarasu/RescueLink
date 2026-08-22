@@ -135,6 +135,21 @@
   <data name="PetReportInvalidPhotoFile" xml:space="preserve">
     <value>Die hochgeladene Datei ist kein gültiges JPEG-, PNG- oder WebP-Bild.</value>
   </data>
+  <data name="PetReportMatchContactNotAvailable" xml:space="preserve">
+    <value>Kontaktinformationen sind erst nach gegenseitiger Bestätigung verfügbar.</value>
+  </data>
+  <data name="PetReportMatchForbidden" xml:space="preserve">
+    <value>Sie sind nicht berechtigt, diese Übereinstimmung zu verwalten.</value>
+  </data>
+  <data name="PetReportMatchNotSuggested" xml:space="preserve">
+    <value>Nur vorgeschlagene Übereinstimmungen können geändert werden.</value>
+  </data>
+  <data name="PetReportMatchRelatedReportsNotFound" xml:space="preserve">
+    <value>Die mit dieser Übereinstimmung verbundenen Tiermeldungen konnten nicht gefunden werden.</value>
+  </data>
+  <data name="PetReportMatchReportsNotActive" xml:space="preserve">
+    <value>Beide Tiermeldungen müssen aktiv sein, um die Übereinstimmung zu bestätigen.</value>
+  </data>
   <data name="PetReportMaximumPhotoCountReached" xml:space="preserve">
     <value>Eine Tiermeldung darf höchstens {0} Fotos enthalten</value>
   </data>
@@ -146,5 +161,8 @@
   </data>
   <data name="PetReportPhotoNotFound" xml:space="preserve">
     <value>Das Foto wurde in dieser Tiermeldung nicht gefunden.</value>
+  </data>
+  <data name="PetReportMatchNotFound" xml:space="preserve">
+    <value>Die Übereinstimmung zwischen den Tiermeldungen wurde nicht gefunden.</value>
   </data>
 </root>

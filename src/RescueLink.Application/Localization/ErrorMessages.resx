@@ -135,6 +135,21 @@
   <data name="PetReportInvalidPhotoFile" xml:space="preserve">
     <value>The uploaded file is not a valid JPEG, PNG or WebP image.</value>
   </data>
+  <data name="PetReportMatchContactNotAvailable" xml:space="preserve">
+    <value>Contact information is available only after mutual confirmation.</value>
+  </data>
+  <data name="PetReportMatchForbidden" xml:space="preserve">
+    <value>You are not allowed to manage this match.</value>
+  </data>
+  <data name="PetReportMatchNotSuggested" xml:space="preserve">
+    <value>Only suggested matches can be modified.</value>
+  </data>
+  <data name="PetReportMatchRelatedReportsNotFound" xml:space="preserve">
+    <value>The reports related to this match could not be found.</value>
+  </data>
+  <data name="PetReportMatchReportsNotActive" xml:space="preserve">
+    <value>Both pet reports must be active to confirm the match.</value>
+  </data>
   <data name="PetReportMaximumPhotoCountReached" xml:space="preserve">
     <value>A pet report can contain at most {0} photos.</value>
   </data>
@@ -146,5 +161,8 @@
   </data>
   <data name="PetReportPhotoNotFound" xml:space="preserve">
     <value>The photo was not found in this pet report.</value>
+  </data>
+  <data name="PetReportMatchNotFound" xml:space="preserve">
+    <value>The pet report match was not found.</value>
   </data>
 </root>

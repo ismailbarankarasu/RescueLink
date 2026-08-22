@@ -67,6 +67,15 @@ public abstract class ApiControllerBase
                 ".ContactNotAvailable",
                 StringComparison.Ordinal) =>
                     StatusCodes.Status409Conflict,
+            _ when errorCode.EndsWith(
+                ".NotSuggested",
+                StringComparison.Ordinal) =>
+                    StatusCodes.Status409Conflict,
+
+            _ when errorCode.EndsWith(
+                ".ReportsNotActive",
+                StringComparison.Ordinal) =>
+                    StatusCodes.Status409Conflict,
 
             _ =>
                 StatusCodes.Status400BadRequest

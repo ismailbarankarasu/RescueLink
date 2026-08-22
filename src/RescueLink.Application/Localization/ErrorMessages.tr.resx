@@ -135,6 +135,24 @@
   <data name="PetReportInvalidPhotoFile" xml:space="preserve">
     <value>Yüklenen dosya geçerli bir JPEG, PNG veya WebP görseli değildir.</value>
   </data>
+  <data name="PetReportMatchContactNotAvailable" xml:space="preserve">
+    <value>İletişim bilgileri yalnızca karşılıklı onaydan sonra kullanılabilir.</value>
+  </data>
+  <data name="PetReportMatchForbidden" xml:space="preserve">
+    <value>Bu eşleşmeyi yönetme yetkiniz yok.</value>
+  </data>
+  <data name="PetReportMatchNotFound" xml:space="preserve">
+    <value>Hayvan ilanı eşleşmesi bulunamadı.</value>
+  </data>
+  <data name="PetReportMatchNotSuggested" xml:space="preserve">
+    <value>Yalnızca önerilen eşleşmeler değiştirilebilir.</value>
+  </data>
+  <data name="PetReportMatchRelatedReportsNotFound" xml:space="preserve">
+    <value>Bu eşleşmeyle ilişkili hayvan ilanları bulunamadı.</value>
+  </data>
+  <data name="PetReportMatchReportsNotActive" xml:space="preserve">
+    <value>Eşleşmenin onaylanabilmesi için her iki hayvan ilanı da aktif olmalıdır.</value>
+  </data>
   <data name="PetReportMaximumPhotoCountReached" xml:space="preserve">
     <value>Bir hayvan ilanı en fazla {0} fotoğraf içerebilir.</value>
   </data>
