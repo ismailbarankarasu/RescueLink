@@ -126,4 +126,25 @@
   <data name="AuthenticationInvalidRefreshToken" xml:space="preserve">
     <value>Das Aktualisierungstoken ist ungültig oder abgelaufen.</value>
   </data>
+  <data name="AuthenticationUnauthenticated" xml:space="preserve">
+    <value>Der aktuelle Benutzer ist nicht authentifiziert.</value>
+  </data>
+  <data name="PetReportForbidden" xml:space="preserve">
+    <value>Sie sind nicht berechtigt, diese Tiermeldung zu ändern.</value>
+  </data>
+  <data name="PetReportInvalidPhotoFile" xml:space="preserve">
+    <value>Die hochgeladene Datei ist kein gültiges JPEG-, PNG- oder WebP-Bild.</value>
+  </data>
+  <data name="PetReportMaximumPhotoCountReached" xml:space="preserve">
+    <value>Eine Tiermeldung darf höchstens {0} Fotos enthalten</value>
+  </data>
+  <data name="PetReportNotActive" xml:space="preserve">
+    <value>Nur aktive Tiermeldungen können geändert werden.</value>
+  </data>
+  <data name="PetReportNotFound" xml:space="preserve">
+    <value>Die Tiermeldung wurde nicht gefunden.</value>
+  </data>
+  <data name="PetReportPhotoNotFound" xml:space="preserve">
+    <value>Das Foto wurde in dieser Tiermeldung nicht gefunden.</value>
+  </data>
 </root>

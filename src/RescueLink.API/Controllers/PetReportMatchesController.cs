@@ -10,9 +10,7 @@ namespace RescueLink.API.Controllers;
 [ApiController]
 [Route("api/pet-report-matches")]
 [Authorize]
-public sealed class PetReportMatchesController(
-    ISender sender)
-    : ControllerBase
+public sealed class PetReportMatchesController(ISender sender): ControllerBase
 {
     [HttpPatch("{matchId:guid}/confirm")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

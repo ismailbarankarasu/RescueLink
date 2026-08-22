@@ -1,5 +1,7 @@
-﻿using RescueLink.Application.Common.Results;
+﻿using System.Globalization;
+using RescueLink.Application.Common.Results;
 using RescueLink.Application.Localization;
+using RescueLink.Domain.Entities;
 
 namespace RescueLink.API.Common;
 
@@ -21,6 +23,37 @@ internal sealed class ErrorLocalizer
             "Authentication.InvalidRefreshToken" =>
                 ErrorMessages
                     .AuthenticationInvalidRefreshToken,
+
+            "Authentication.Unauthenticated" =>
+                ErrorMessages
+                    .AuthenticationUnauthenticated,
+
+            "PetReport.NotFound" =>
+                ErrorMessages
+                    .PetReportNotFound,
+
+            "PetReport.Forbidden" =>
+                ErrorMessages
+                    .PetReportForbidden,
+
+            "PetReport.MaximumPhotoCountReached" =>
+                string.Format(
+                    CultureInfo.CurrentUICulture,
+                    ErrorMessages
+                        .PetReportMaximumPhotoCountReached,
+                    PetReport.MaximumPhotoCount),
+
+            "PetReport.InvalidPhotoFile" =>
+                ErrorMessages
+                    .PetReportInvalidPhotoFile,
+
+            "PetReport.PhotoNotFound" =>
+                ErrorMessages
+                    .PetReportPhotoNotFound,
+
+            "PetReport.NotActive" =>
+                ErrorMessages
+                    .PetReportNotActive,
 
             _ => error.Message
         };

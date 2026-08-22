@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RescueLink.API.Common;
 using RescueLink.API.Contracts.PetReports;
 using RescueLink.Application.Common.Pagination;
 using RescueLink.Application.Features.PetReports;
@@ -23,11 +24,14 @@ namespace RescueLink.API.Controllers;
 [ApiController]
 [Route("api/pet-reports")]
 [Authorize]
-public sealed class PetReportsController : ControllerBase
+public sealed class PetReportsController : ApiControllerBase
 {
     private readonly ISender _sender;
 
-    public PetReportsController(ISender sender)
+    public PetReportsController(
+        ISender sender,
+        IErrorLocalizer errorLocalizer)
+        : base(errorLocalizer)
     {
         _sender = sender;
     }
@@ -43,21 +47,7 @@ public sealed class PetReportsController : ControllerBase
 
         if (result.IsFailure)
         {
-            if (result.Error ==
-                PetReportErrors.Unauthenticated)
-            {
-                return Unauthorized(new
-                {
-                    result.Error.Code,
-                    result.Error.Message
-                });
-            }
-
-            return BadRequest(new
-            {
-                result.Error.Code,
-                result.Error.Message
-            });
+            return HandleFailure(result.Error);
         }
 
         return CreatedAtRoute(
@@ -86,11 +76,7 @@ public sealed class PetReportsController : ControllerBase
 
         if (result.IsFailure)
         {
-            return NotFound(new
-            {
-                result.Error.Code,
-                result.Error.Message
-            });
+            return HandleFailure(result.Error);
         }
 
         return Ok(result.Value);
@@ -103,8 +89,7 @@ public sealed class PetReportsController : ControllerBase
     StatusCodes.Status200OK)]
     [ProducesResponseType(
     StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<
-    IReadOnlyCollection<NearbyPetReportResponse>>> GetNearby(
+    public async Task<IActionResult> GetNearby(
         [FromQuery] double latitude,
         [FromQuery] double longitude,
         [FromQuery] double radiusMeters = 5_000,
@@ -124,6 +109,11 @@ public sealed class PetReportsController : ControllerBase
         var result = await _sender.Send(
             query,
             cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleFailure(result.Error);
+        }
 
         return Ok(result.Value);
     }
@@ -162,28 +152,9 @@ public sealed class PetReportsController : ControllerBase
             });
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReport.InvalidPhotoFile" =>
-                BadRequest(result.Error),
-
-            "PetReport.MaximumPhotoCountReached" =>
-                BadRequest(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
+
     private static string NormalizeContentType(IFormFile file)
     {
         if (!string.Equals(
@@ -229,24 +200,7 @@ public sealed class PetReportsController : ControllerBase
             return NoContent();
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReport.PhotoNotFound" =>
-                NotFound(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
 
     [HttpDelete("{reportId:guid}/photos/{photoId:guid}")]
@@ -274,24 +228,7 @@ public sealed class PetReportsController : ControllerBase
             return NoContent();
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReport.PhotoNotFound" =>
-                NotFound(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
 
     [HttpPatch("{id:guid}/resolve")]
@@ -317,24 +254,7 @@ public sealed class PetReportsController : ControllerBase
             return NoContent();
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReport.NotActive" =>
-                Conflict(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
 
     [HttpPatch("{id:guid}/cancel")]
@@ -360,24 +280,7 @@ public sealed class PetReportsController : ControllerBase
             return NoContent();
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReport.NotActive" =>
-                Conflict(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
 
     [HttpGet("{id:guid}/matches")]
@@ -403,21 +306,7 @@ public sealed class PetReportsController : ControllerBase
             return Ok(result.Value);
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
 
     [HttpGet]
@@ -426,8 +315,7 @@ public sealed class PetReportsController : ControllerBase
     typeof(PagedResult<PetReportListItemResponse>),
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<
-    PagedResult<PetReportListItemResponse>>> GetList(
+    public async Task<IActionResult> GetList(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 12,
         [FromQuery] ReportType? reportType = null,
@@ -446,6 +334,11 @@ public sealed class PetReportsController : ControllerBase
             query,
             cancellationToken);
 
+        if (result.IsFailure)
+        {
+            return HandleFailure(result.Error);
+        }
+
         return Ok(result.Value);
     }
 
@@ -456,8 +349,7 @@ public sealed class PetReportsController : ControllerBase
     StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<
-    PagedResult<MyPetReportListItemResponse>>> GetMine(
+    public async Task<IActionResult> GetMine(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 12,
         [FromQuery] ReportType? reportType = null,
@@ -476,13 +368,7 @@ public sealed class PetReportsController : ControllerBase
 
         if (result.IsFailure)
         {
-            return result.Error.Code switch
-            {
-                "Authentication.Unauthenticated" =>
-                    Unauthorized(result.Error),
-
-                _ => BadRequest(result.Error)
-            };
+            return HandleFailure(result.Error);
         }
 
         return Ok(result.Value);
@@ -524,23 +410,6 @@ public sealed class PetReportsController : ControllerBase
             return NoContent();
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(result.Error),
-
-            "PetReport.Forbidden" =>
-                StatusCode(
-                    StatusCodes.Status403Forbidden,
-                    result.Error),
-
-            "PetReport.NotFound" =>
-                NotFound(result.Error),
-
-            "PetReport.NotActive" =>
-                Conflict(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return HandleFailure(result.Error);
     }
 }

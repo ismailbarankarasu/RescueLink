@@ -86,5 +86,68 @@ namespace RescueLink.Application.Localization {
                 return ResourceManager.GetString("AuthenticationInvalidRefreshToken", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The current user is not authenticated..
+        /// </summary>
+        public static string AuthenticationUnauthenticated {
+            get {
+                return ResourceManager.GetString("AuthenticationUnauthenticated", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You are not allowed to modify this pet report..
+        /// </summary>
+        public static string PetReportForbidden {
+            get {
+                return ResourceManager.GetString("PetReportForbidden", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The uploaded file is not a valid JPEG, PNG or WebP image..
+        /// </summary>
+        public static string PetReportInvalidPhotoFile {
+            get {
+                return ResourceManager.GetString("PetReportInvalidPhotoFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A pet report can contain at most {0} photos..
+        /// </summary>
+        public static string PetReportMaximumPhotoCountReached {
+            get {
+                return ResourceManager.GetString("PetReportMaximumPhotoCountReached", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only active pet reports can be modified..
+        /// </summary>
+        public static string PetReportNotActive {
+            get {
+                return ResourceManager.GetString("PetReportNotActive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The pet report was not found..
+        /// </summary>
+        public static string PetReportNotFound {
+            get {
+                return ResourceManager.GetString("PetReportNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The photo was not found in this pet report..
+        /// </summary>
+        public static string PetReportPhotoNotFound {
+            get {
+                return ResourceManager.GetString("PetReportPhotoNotFound", resourceCulture);
+            }
+        }
     }
 }

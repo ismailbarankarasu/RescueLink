@@ -126,4 +126,25 @@
   <data name="AuthenticationInvalidRefreshToken" xml:space="preserve">
     <value>The refresh token is invalid or has expired.</value>
   </data>
+  <data name="AuthenticationUnauthenticated" xml:space="preserve">
+    <value>The current user is not authenticated.</value>
+  </data>
+  <data name="PetReportForbidden" xml:space="preserve">
+    <value>You are not allowed to modify this pet report.</value>
+  </data>
+  <data name="PetReportInvalidPhotoFile" xml:space="preserve">
+    <value>The uploaded file is not a valid JPEG, PNG or WebP image.</value>
+  </data>
+  <data name="PetReportMaximumPhotoCountReached" xml:space="preserve">
+    <value>A pet report can contain at most {0} photos.</value>
+  </data>
+  <data name="PetReportNotActive" xml:space="preserve">
+    <value>Only active pet reports can be modified.</value>
+  </data>
+  <data name="PetReportNotFound" xml:space="preserve">
+    <value>The pet report was not found.</value>
+  </data>
+  <data name="PetReportPhotoNotFound" xml:space="preserve">
+    <value>The photo was not found in this pet report.</value>
+  </data>
 </root>

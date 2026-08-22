@@ -126,4 +126,25 @@
   <data name="AuthenticationInvalidRefreshToken" xml:space="preserve">
     <value>Yenileme belirteci geçersiz veya süresi dolmuş.</value>
   </data>
+  <data name="AuthenticationUnauthenticated" xml:space="preserve">
+    <value>Geçerli kullanıcının kimliği doğrulanmamış.</value>
+  </data>
+  <data name="PetReportForbidden" xml:space="preserve">
+    <value>Bu hayvan ilanını değiştirme yetkiniz yok.</value>
+  </data>
+  <data name="PetReportInvalidPhotoFile" xml:space="preserve">
+    <value>Yüklenen dosya geçerli bir JPEG, PNG veya WebP görseli değildir.</value>
+  </data>
+  <data name="PetReportMaximumPhotoCountReached" xml:space="preserve">
+    <value>Bir hayvan ilanı en fazla {0} fotoğraf içerebilir.</value>
+  </data>
+  <data name="PetReportNotActive" xml:space="preserve">
+    <value>Yalnızca aktif hayvan ilanları değiştirilebilir.</value>
+  </data>
+  <data name="PetReportNotFound" xml:space="preserve">
+    <value>Hayvan ilanı bulunamadı.</value>
+  </data>
+  <data name="PetReportPhotoNotFound" xml:space="preserve">
+    <value>Fotoğraf bu hayvan ilanında bulunamadı.</value>
+  </data>
 </root>
