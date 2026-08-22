@@ -293,4 +293,62 @@ public sealed class AuthenticationEndpointTests
         refreshResponse.StatusCode.Should().Be(
             HttpStatusCode.Unauthorized);
     }
+
+    [Theory]
+    [InlineData("en", "Email or password is incorrect.")]
+    [InlineData("tr", "E-posta adresi veya şifre hatalı.")]
+    [InlineData("de", "E-Mail-Adresse oder Passwort ist falsch.")]
+    public async Task Login_ShouldReturnLocalizedError_WhenCredentialsAreInvalid(
+    string language,
+    string expectedMessage)
+    {
+        // Arrange
+        await using var factory =
+            new RescueLinkWebApplicationFactory(
+                _sqlServerContainer.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders
+            .AcceptLanguage
+            .ParseAdd(language);
+
+        var request = new
+        {
+            Email =
+                $"missing-{Guid.NewGuid():N}@example.com",
+            Password = "WrongPassword123"
+        };
+
+        // Act
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                request);
+
+        var responseBody =
+            await response.Content
+                .ReadAsStringAsync();
+
+        // Assert
+        response.StatusCode.Should().Be(
+            HttpStatusCode.Unauthorized,
+            $"response body: {responseBody}");
+
+        using var responseJson =
+            JsonDocument.Parse(responseBody);
+
+        var error = responseJson.RootElement;
+
+        error.GetProperty("code")
+            .GetString()
+            .Should()
+            .Be(
+                "Authentication.InvalidCredentials");
+
+        error.GetProperty("message")
+            .GetString()
+            .Should()
+            .Be(expectedMessage);
+    }
 }

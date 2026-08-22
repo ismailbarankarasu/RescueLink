@@ -134,7 +134,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddOpenApi();
-
+builder.Services.AddSingleton<IErrorLocalizer, ErrorLocalizer>();
 builder.Services
     .AddHealthChecks()
     .AddDbContextCheck<RescueLinkDbContext>(

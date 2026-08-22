@@ -18,17 +18,17 @@ namespace RescueLink.API.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly IErrorLocalizer _errorLocalizer;
 
-    public AuthController(ISender sender)
+    public AuthController(ISender sender, IErrorLocalizer errorLocalizer)
     {
         _sender = sender;
+        _errorLocalizer = errorLocalizer;
     }
-    [EnableRateLimiting(
-    RateLimitPolicies.Authentication)]
+
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [HttpPost("register")]
-    public async Task<IActionResult> Register(
-        [FromBody] RegisterUserCommand command,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Register([FromBody] RegisterUserCommand command, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
             command,
@@ -36,21 +36,17 @@ public sealed class AuthController : ControllerBase
 
         if (result.IsFailure)
         {
+            var localizedError =
+                _errorLocalizer.Localize(
+                    result.Error);
+
             if (result.Error ==
                 AuthenticationErrors.EmailAlreadyInUse)
             {
-                return Conflict(new
-                {
-                    result.Error.Code,
-                    result.Error.Message
-                });
+                return Conflict(localizedError);
             }
 
-            return BadRequest(new
-            {
-                result.Error.Code,
-                result.Error.Message
-            });
+            return BadRequest(localizedError);
         }
 
         return StatusCode(
@@ -60,12 +56,10 @@ public sealed class AuthController : ControllerBase
                 UserId = result.Value
             });
     }
-    [EnableRateLimiting(
-    RateLimitPolicies.Authentication)]
+
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [HttpPost("login")]
-    public async Task<IActionResult> Login(
-        [FromBody] LoginUserCommand command,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Login([FromBody] LoginUserCommand command, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
             command,
@@ -73,22 +67,20 @@ public sealed class AuthController : ControllerBase
 
         if (result.IsFailure)
         {
-            return Unauthorized(new
-            {
-                result.Error.Code,
-                result.Error.Message
-            });
+            var localizedError =
+                _errorLocalizer.Localize(
+                    result.Error);
+
+            return Unauthorized(localizedError);
         }
 
         return Ok(result.Value);
     }
-    [EnableRateLimiting(
-    RateLimitPolicies.Token)]
+
+    [EnableRateLimiting(RateLimitPolicies.Token)]
     [AllowAnonymous]
     [HttpPost("refresh")]
-    public async Task<IActionResult> Refresh(
-    RefreshTokenRequest request,
-    CancellationToken cancellationToken)
+    public async Task<IActionResult> Refresh(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
             new RefreshTokenCommand(
@@ -100,21 +92,23 @@ public sealed class AuthController : ControllerBase
             return Ok(result.Value);
         }
 
+        var localizedError =
+            _errorLocalizer.Localize(
+                result.Error);
+
         return result.Error.Code switch
         {
             "Authentication.InvalidRefreshToken" =>
-                Unauthorized(result.Error),
+                Unauthorized(localizedError),
 
-            _ => BadRequest(result.Error)
+            _ => BadRequest(localizedError)
         };
     }
-    [EnableRateLimiting(
-    RateLimitPolicies.Token)]
+
+    [EnableRateLimiting(RateLimitPolicies.Token)]
     [AllowAnonymous]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(
-    RefreshTokenRequest request,
-    CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout(RefreshTokenRequest request, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
             new LogoutCommand(
@@ -126,6 +120,10 @@ public sealed class AuthController : ControllerBase
             return NoContent();
         }
 
-        return BadRequest(result.Error);
+        var localizedError =
+            _errorLocalizer.Localize(
+                result.Error);
+
+        return BadRequest(localizedError);
     }
 }
