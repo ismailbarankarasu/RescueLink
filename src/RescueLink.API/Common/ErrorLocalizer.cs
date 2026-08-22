@@ -91,6 +91,9 @@ internal sealed class ErrorLocalizer
             "UserProfile.UpdateFailed" =>
                 ErrorMessages.UserProfileUpdateFailed,
 
+            "Authorization.Forbidden" =>
+                ErrorMessages.AuthorizationForbidden,
+
             _ => error.Message
         };
 

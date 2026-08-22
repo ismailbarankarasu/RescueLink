@@ -177,4 +177,7 @@
   <data name="UserProfileUpdateFailed" xml:space="preserve">
     <value>Kullanıcı profili güncellenemedi.</value>
   </data>
+  <data name="AuthorizationForbidden" xml:space="preserve">
+    <value>Bu işlemi gerçekleştirme yetkiniz yok.</value>
+  </data>
 </root>

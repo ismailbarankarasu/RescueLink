@@ -97,6 +97,15 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to You do not have permission to perform this operation..
+        /// </summary>
+        public static string AuthorizationForbidden {
+            get {
+                return ResourceManager.GetString("AuthorizationForbidden", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to You are not allowed to manage this notification..
         /// </summary>
         public static string NotificationForbidden {

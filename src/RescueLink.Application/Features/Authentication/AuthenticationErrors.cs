@@ -22,4 +22,11 @@ public static class AuthenticationErrors
             "Authentication.RegistrationFailed",
             description);
     }
+    public static readonly Error Unauthenticated = new(
+        "Authentication.Unauthenticated",
+        "The current user is not authenticated.");
+
+    public static readonly Error Forbidden = new(
+        "Authorization.Forbidden",
+        "You do not have permission to perform this operation.");
 }

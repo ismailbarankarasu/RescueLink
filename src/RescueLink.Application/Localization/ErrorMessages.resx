@@ -177,4 +177,7 @@
   <data name="UserProfileUpdateFailed" xml:space="preserve">
     <value>User profile could not be updated.</value>
   </data>
+  <data name="AuthorizationForbidden" xml:space="preserve">
+    <value>You do not have permission to perform this operation.</value>
+  </data>
 </root>
