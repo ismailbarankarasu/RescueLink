@@ -51,8 +51,7 @@ public sealed class AuthController
             });
     }
 
-    [EnableRateLimiting(
-        RateLimitPolicies.Authentication)]
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
     [HttpPost("login")]
     public async Task<IActionResult> Login(
         [FromBody] LoginUserCommand command,
@@ -70,8 +69,7 @@ public sealed class AuthController
         return Ok(result.Value);
     }
 
-    [EnableRateLimiting(
-        RateLimitPolicies.Token)]
+    [EnableRateLimiting(RateLimitPolicies.Token)]
     [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(
@@ -91,8 +89,7 @@ public sealed class AuthController
         return Ok(result.Value);
     }
 
-    [EnableRateLimiting(
-        RateLimitPolicies.Token)]
+    [EnableRateLimiting(RateLimitPolicies.Token)]
     [AllowAnonymous]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(

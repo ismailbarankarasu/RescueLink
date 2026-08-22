@@ -334,4 +334,48 @@ public sealed class PetReportEndpointTests
         response.StatusCode.Should().Be(
             HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task GetById_ShouldReturnLocalizedNotFound_WhenReportDoesNotExist()
+    {
+        // Arrange
+        await using var factory =
+            new RescueLinkWebApplicationFactory(
+                _sqlServerContainer.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        client.DefaultRequestHeaders
+            .AcceptLanguage
+            .ParseAdd("tr");
+
+        var reportId = Guid.NewGuid();
+
+        // Act
+        var response = await client.GetAsync(
+            $"/api/pet-reports/{reportId}");
+
+        var responseBody =
+            await response.Content.ReadAsStringAsync();
+
+        // Assert
+        response.StatusCode.Should().Be(
+            HttpStatusCode.NotFound,
+            $"response: {responseBody}");
+
+        using var responseJson =
+            JsonDocument.Parse(responseBody);
+
+        var error = responseJson.RootElement;
+
+        error.GetProperty("code")
+            .GetString()
+            .Should()
+            .Be("PetReport.NotFound");
+
+        error.GetProperty("message")
+            .GetString()
+            .Should()
+            .Be("Hayvan ilanı bulunamadı.");
+    }
 }
