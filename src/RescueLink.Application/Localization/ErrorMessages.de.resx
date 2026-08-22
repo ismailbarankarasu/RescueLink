@@ -165,4 +165,10 @@
   <data name="PetReportMatchNotFound" xml:space="preserve">
     <value>Die Übereinstimmung zwischen den Tiermeldungen wurde nicht gefunden.</value>
   </data>
+  <data name="NotificationNotFound" xml:space="preserve">
+    <value>Die Benachrichtigung wurde nicht gefunden.</value>
+  </data>
+  <data name="NotificationForbidden" xml:space="preserve">
+    <value>Sie sind nicht berechtigt, diese Benachrichtigung zu verwalten.</value>
+  </data>
 </root>

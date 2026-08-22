@@ -97,6 +97,24 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to You are not allowed to manage this notification..
+        /// </summary>
+        public static string NotificationForbidden {
+            get {
+                return ResourceManager.GetString("NotificationForbidden", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Notification was not found..
+        /// </summary>
+        public static string NotificationNotFound {
+            get {
+                return ResourceManager.GetString("NotificationNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to You are not allowed to modify this pet report..
         /// </summary>
         public static string PetReportForbidden {

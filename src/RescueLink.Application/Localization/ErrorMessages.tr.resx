@@ -141,9 +141,6 @@
   <data name="PetReportMatchForbidden" xml:space="preserve">
     <value>Bu eşleşmeyi yönetme yetkiniz yok.</value>
   </data>
-  <data name="PetReportMatchNotFound" xml:space="preserve">
-    <value>Hayvan ilanı eşleşmesi bulunamadı.</value>
-  </data>
   <data name="PetReportMatchNotSuggested" xml:space="preserve">
     <value>Yalnızca önerilen eşleşmeler değiştirilebilir.</value>
   </data>
@@ -164,5 +161,14 @@
   </data>
   <data name="PetReportPhotoNotFound" xml:space="preserve">
     <value>Fotoğraf bu hayvan ilanında bulunamadı.</value>
+  </data>
+  <data name="PetReportMatchNotFound" xml:space="preserve">
+    <value>Hayvan ilanı eşleşmesi bulunamadı.</value>
+  </data>
+  <data name="NotificationNotFound" xml:space="preserve">
+    <value>Bildirim bulunamadı.</value>
+  </data>
+  <data name="NotificationForbidden" xml:space="preserve">
+    <value>Bu bildirimi yönetme yetkiniz yok.</value>
   </data>
 </root>

@@ -165,4 +165,10 @@
   <data name="PetReportMatchNotFound" xml:space="preserve">
     <value>The pet report match was not found.</value>
   </data>
+  <data name="NotificationNotFound" xml:space="preserve">
+    <value>Notification was not found.</value>
+  </data>
+  <data name="NotificationForbidden" xml:space="preserve">
+    <value>You are not allowed to manage this notification.</value>
+  </data>
 </root>
