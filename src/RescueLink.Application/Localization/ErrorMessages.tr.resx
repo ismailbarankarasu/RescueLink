@@ -171,4 +171,10 @@
   <data name="NotificationForbidden" xml:space="preserve">
     <value>Bu bildirimi yönetme yetkiniz yok.</value>
   </data>
+  <data name="UserProfileNotFound" xml:space="preserve">
+    <value>Kullanıcı profili bulunamadı.</value>
+  </data>
+  <data name="UserProfileUpdateFailed" xml:space="preserve">
+    <value>Kullanıcı profili güncellenemedi.</value>
+  </data>
 </root>

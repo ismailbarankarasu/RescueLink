@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using RescueLink.API.Common;
 using RescueLink.API.Contracts.Users;
 using RescueLink.Application.Features.Users.GetCurrent;
 using RescueLink.Application.Features.Users.UpdateCurrent;
@@ -10,59 +11,44 @@ namespace RescueLink.API.Controllers;
 [ApiController]
 [Route("api/users")]
 [Authorize]
-public sealed class UsersController : ControllerBase
+public sealed class UsersController : ApiControllerBase
 {
     private readonly ISender _sender;
 
-    public UsersController(ISender sender)
+    public UsersController(ISender sender, IErrorLocalizer errorLocalizer) : base(errorLocalizer)
     {
         _sender = sender;
     }
 
     [HttpGet("me")]
-    [ProducesResponseType(
-        typeof(GetCurrentUserProfileResponse),
-        StatusCodes.Status200OK)]
-    [ProducesResponseType(
-        StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(
-        StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(GetCurrentUserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCurrentUser(
         CancellationToken cancellationToken)
     {
+        var query =
+            new GetCurrentUserProfileQuery();
+
         var result = await _sender.Send(
-            new GetCurrentUserProfileQuery(),
+            query,
             cancellationToken);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            return Ok(result.Value);
+            return HandleFailure(result.Error);
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(result.Error),
-
-            "UserProfile.NotFound" =>
-                NotFound(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return Ok(result.Value);
     }
 
     [HttpPut("me")]
-    [ProducesResponseType(
-    StatusCodes.Status204NoContent)]
-    [ProducesResponseType(
-    StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(
-    StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(
-    StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateCurrentUser(
-    [FromBody] UpdateCurrentUserProfileRequest request,
-    CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateCurrentUser([FromBody] UpdateCurrentUserProfileRequest request, CancellationToken cancellationToken)
     {
         var command =
             new UpdateCurrentUserProfileCommand(
@@ -79,20 +65,11 @@ public sealed class UsersController : ControllerBase
             command,
             cancellationToken);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            return NoContent();
+            return HandleFailure(result.Error);
         }
 
-        return result.Error.Code switch
-        {
-            "Authentication.Unauthenticated" =>
-                Unauthorized(result.Error),
-
-            "UserProfile.NotFound" =>
-                NotFound(result.Error),
-
-            _ => BadRequest(result.Error)
-        };
+        return NoContent();
     }
 }

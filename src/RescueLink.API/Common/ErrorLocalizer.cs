@@ -77,11 +77,19 @@ internal sealed class ErrorLocalizer
             "PetReportMatch.NotFound" =>
                 ErrorMessages
                     .PetReportMatchNotFound,
+
             "Notification.NotFound" =>
                 ErrorMessages.NotificationNotFound,
 
+
             "Notification.Forbidden" =>
                 ErrorMessages.NotificationForbidden,
+
+            "UserProfile.NotFound" =>
+                ErrorMessages.UserProfileNotFound,
+
+            "UserProfile.UpdateFailed" =>
+                ErrorMessages.UserProfileUpdateFailed,
 
             _ => error.Message
         };

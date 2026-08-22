@@ -171,4 +171,10 @@
   <data name="NotificationForbidden" xml:space="preserve">
     <value>You are not allowed to manage this notification.</value>
   </data>
+  <data name="UserProfileNotFound" xml:space="preserve">
+    <value>User profile was not found.</value>
+  </data>
+  <data name="UserProfileUpdateFailed" xml:space="preserve">
+    <value>User profile could not be updated.</value>
+  </data>
 </root>

@@ -171,4 +171,10 @@
   <data name="NotificationForbidden" xml:space="preserve">
     <value>Sie sind nicht berechtigt, diese Benachrichtigung zu verwalten.</value>
   </data>
+  <data name="UserProfileNotFound" xml:space="preserve">
+    <value>Das Benutzerprofil wurde nicht gefunden.</value>
+  </data>
+  <data name="UserProfileUpdateFailed" xml:space="preserve">
+    <value>Das Benutzerprofil konnte nicht aktualisiert werden.</value>
+  </data>
 </root>

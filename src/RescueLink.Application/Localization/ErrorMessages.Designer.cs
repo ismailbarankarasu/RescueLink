@@ -221,5 +221,23 @@ namespace RescueLink.Application.Localization {
                 return ResourceManager.GetString("PetReportPhotoNotFound", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User profile was not found..
+        /// </summary>
+        public static string UserProfileNotFound {
+            get {
+                return ResourceManager.GetString("UserProfileNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User profile could not be updated..
+        /// </summary>
+        public static string UserProfileUpdateFailed {
+            get {
+                return ResourceManager.GetString("UserProfileUpdateFailed", resourceCulture);
+            }
+        }
     }
 }
