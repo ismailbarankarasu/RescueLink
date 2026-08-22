@@ -94,6 +94,9 @@ internal sealed class ErrorLocalizer
             "Authorization.Forbidden" =>
                 ErrorMessages.AuthorizationForbidden,
 
+            "RateLimit.Exceeded" =>
+                ErrorMessages.RateLimitExceeded,
+
             _ => error.Message
         };
 

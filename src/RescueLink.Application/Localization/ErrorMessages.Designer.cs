@@ -232,6 +232,15 @@ namespace RescueLink.Application.Localization {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Too many requests. Please try again later..
+        /// </summary>
+        public static string RateLimitExceeded {
+            get {
+                return ResourceManager.GetString("RateLimitExceeded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to User profile was not found..
         /// </summary>
         public static string UserProfileNotFound {

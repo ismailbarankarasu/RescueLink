@@ -180,4 +180,7 @@
   <data name="AuthorizationForbidden" xml:space="preserve">
     <value>You do not have permission to perform this operation.</value>
   </data>
+  <data name="RateLimitExceeded" xml:space="preserve">
+    <value>Too many requests. Please try again later.</value>
+  </data>
 </root>

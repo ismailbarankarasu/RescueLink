@@ -180,4 +180,7 @@
   <data name="AuthorizationForbidden" xml:space="preserve">
     <value>Bu işlemi gerçekleştirme yetkiniz yok.</value>
   </data>
+  <data name="RateLimitExceeded" xml:space="preserve">
+    <value>Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin.</value>
+  </data>
 </root>

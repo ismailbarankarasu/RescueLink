@@ -1,11 +1,15 @@
-﻿using Microsoft.AspNetCore.RateLimiting;
-using RescueLink.API.Common;
+﻿using RescueLink.API.Common;
+using RescueLink.Application.Common.Results;
+using System.Globalization;
 using System.Threading.RateLimiting;
-
 namespace RescueLink.API.Extensions;
 
 public static class RateLimitingExtensions
 {
+    private static readonly Error RateLimitExceeded = new(
+        "RateLimit.Exceeded",
+        "Too many requests. Please try again later.");
+
     public static IServiceCollection AddApiRateLimiting(
         this IServiceCollection services)
     {
@@ -18,19 +22,32 @@ public static class RateLimitingExtensions
                 context,
                 cancellationToken) =>
             {
-                context.HttpContext.Response.ContentType =
+                var httpContext =
+                    context.HttpContext;
+
+                var response =
+                    httpContext.Response;
+
+                response.ContentType =
                     "application/json";
 
-                await context.HttpContext.Response
-                    .WriteAsJsonAsync(
-                        new
-                        {
-                            code = "RateLimit.Exceeded",
-                            message =
-                                "Too many requests. Please try again later."
-                        },
-                        cancellationToken);
+                response.Headers.ContentLanguage =
+                    CultureInfo.CurrentUICulture.Name;
+
+                var errorLocalizer =
+                    httpContext.RequestServices
+                        .GetRequiredService<
+                            IErrorLocalizer>();
+
+                var localizedError =
+                    errorLocalizer.Localize(
+                        RateLimitExceeded);
+
+                await response.WriteAsJsonAsync(
+                    localizedError,
+                    cancellationToken);
             };
+
 
             options.AddPolicy(
                 RateLimitPolicies.Authentication,
@@ -80,4 +97,5 @@ public static class RateLimitingExtensions
                    .ToString()
                ?? "unknown";
     }
+
 }
