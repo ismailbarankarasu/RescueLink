@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, global user profile management, English/Turkish/German request localization, localized validation Problem Details, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, in-app notifications, Docker support, and SQL Server-backed integration tests. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, global user profile management, English/Turkish/German request localization, localized validation and API error responses, localized JWT/rate-limit failures, culture-aware notification content, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, in-app notifications, Docker support, and SQL Server-backed integration tests. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
 
 ---
 
@@ -80,8 +80,11 @@ Today, the API supports:
 
 - User registration and JWT-based login
 - Global user profiles with E.164 phone numbers, ISO country codes, city, preferred language, and IANA time zones
-- Request localization through `Accept-Language` with English, Turkish, and German validation responses
+- Request localization through `Accept-Language` with English, Turkish, and German responses
 - Localized RFC-compatible validation Problem Details (`title`, `detail`, and field messages)
+- Centralized, localized application errors across authentication, reports, matches, notifications, and user profiles
+- Localized JWT challenge/forbidden and rate-limit responses
+- Notification titles and messages localized at query time while persisted content remains a safe fallback
 - Hashed refresh-token persistence, single-use rotation, replay protection, logout/revocation, and optimistic concurrency control
 - Per-IP rate limiting for authentication/token endpoints and configuration-based frontend CORS
 - Creating Lost/Found reports with coordinates
@@ -117,7 +120,8 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **Frontend-ready CORS** | Configuration-based allowlist for trusted Angular origins |
 | **Health checks** | Independent liveness plus SQL Server-backed readiness endpoints |
 | **Global user profiles** | Authenticated profile retrieval/update with E.164 phone, ISO country, language, city, and IANA time-zone fields |
-| **API localization** | `Accept-Language` negotiation with English, Turkish, and German validation messages and Problem Details |
+| **API localization** | `Accept-Language` negotiation with English, Turkish, and German validation, application errors, JWT failures, rate-limit responses, and Problem Details |
+| **Localized notification content** | Notification titles/messages are selected from `.resx` resources by request culture, with stored database text as fallback |
 | **Structured observability** | Serilog request logs, trace/user correlation, status-aware levels, and safe global exception handling |
 | **Dockerized runtime** | Multi-stage .NET 10 image, SQL Server Compose service, automatic migrations, and persistent SQL/upload volumes |
 | **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
@@ -140,7 +144,6 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | Feature | Description |
 |--------|-------------|
 | **Explainable matches** | Human-readable reasons in addition to the implemented score |
-| **Explainable notifications** | Localized, human-readable notification content and match reasons |
 | **Advanced filtering** | Add breed and date-range filters to implemented pagination |
 | **Realtime delivery** | SignalR, email, or push delivery on top of persisted in-app notifications |
 | **Cloud storage** | Azure Blob (or similar) via `IFileStorageService` |
@@ -191,7 +194,7 @@ Both reports are automatically marked Resolved
       ↓
 Confirmed participants can securely retrieve counterpart contact details
       ↓
-Owners receive lifecycle-aware in-app notifications
+Owners receive lifecycle-aware in-app notifications in the requested language
       ↓
 Owner reunites with pet
 ```
@@ -332,7 +335,7 @@ Owner-scoped UserNotifications are persisted
 | Web framework | ASP.NET Core Web API |
 | Patterns | Clean Architecture, CQRS, MediatR, Observer via Domain Events |
 | Validation | FluentValidation with localized resource messages |
-| Localization | ASP.NET Core Request Localization (`en`, `tr`, `de`) and `.resx` resources |
+| Localization | ASP.NET Core Request Localization (`en`, `tr`, `de`), centralized error localization, and culture-aware notification `.resx` resources |
 | ORM | Entity Framework Core 10 |
 | Geospatial | NetTopologySuite, SQL Server `geography` |
 | Read queries | Dapper (nearby search, matching candidates, match listing, report discovery, owner reports, notifications) |
@@ -471,7 +474,7 @@ Profile validation follows global standards: E.164 phone numbers, two-letter ISO
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/api/notifications` | Required | Paginated owner notifications; supports `unreadOnly` |
+| GET | `/api/notifications` | Required | Paginated owner notifications; supports `unreadOnly` and localized title/message content through `Accept-Language` |
 | GET | `/api/notifications/unread-count` | Required | Return the caller's unread notification count |
 | PATCH | `/api/notifications/{id}/read` | Required | Idempotently mark an owned notification as read |
 | PATCH | `/api/notifications/read-all` | Required | Mark all caller notifications as read in one bulk update |
@@ -483,7 +486,7 @@ Profile validation follows global standards: E.164 phone numbers, two-letter ISO
 | GET | `/health/live` | Anonymous | Process liveness without external dependencies |
 | GET | `/health/ready` | Anonymous | SQL Server-backed readiness check |
 
-**Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report. Notification queries are always scoped to the authenticated user, and only the owner can mark a notification as read.
+**Authorization rules:** Only report owners can modify reports/photos or view their report's matches. A match can be managed only by the owner of its Lost or Found report. Notification queries are always scoped to the authenticated user, and only the owner can mark a notification as read. API errors, authentication/authorization failures, rate-limit responses, and notification content honor supported `Accept-Language` values (`en`, `tr`, `de`).
 
 ---
 
@@ -806,12 +809,13 @@ Examples of covered behavior:
 - Automatic report resolution after mutual confirmation
 - Report update authorization and active-state rules
 - Match recalculation and stale-suggestion cleanup flow
-- Notification entity rules, suggested/confirmed event observers, owner isolation, listing, unread count, single read, and bulk-read handlers
+- Notification entity rules, suggested/confirmed event observers, owner isolation, listing, unread count, single read, bulk-read handlers, and EN/TR/DE content localization
 - Confirmed-match contact authorization and disclosure rules
 - Health liveness/readiness behavior against a real SQL Server container
 - Register/login, refresh-token rotation, logout, and authorization over HTTP
 - Report creation, retrieval, ownership protection, and spatial nearby ordering
-- Global user profile update/retrieval, normalization, invalid-update protection, and localized German validation responses
+- Global user profile update/retrieval, normalization, invalid-update protection, and localized validation responses
+- End-to-end notification localization through the real HTTP pipeline for English, Turkish, and German
 
 CI runs restore, Release build, all tests, and a Linux Docker image build on every push/PR to `master` via GitHub Actions. The CI image is validated but is not yet published to a registry.
 
@@ -837,7 +841,9 @@ Integration tests run against an isolated SQL Server 2022 container and apply th
 - [x] **Restricted frontend CORS policy**
 - [x] **Liveness and SQL Server readiness health checks**
 - [x] **Global user profile management** with international phone/country/language/time-zone fields
-- [x] **English, Turkish, and German validation localization** via `Accept-Language`
+- [x] **English, Turkish, and German API localization** via `Accept-Language`
+- [x] **Centralized localized errors** for controllers, JWT middleware, validation, and rate limiting
+- [x] **Localized notification content** with persisted fallback text and HTTP integration coverage
 - [ ] **Delete/archive reports**
 - [ ] **Realtime/email/push delivery** (SignalR → email/push)
 - [ ] **Admin role** for moderation
@@ -869,6 +875,7 @@ Success will be measured not only by report volume, but by **how many lost pets 
 - JWT secret and connection strings must be kept out of source control (User Secrets / environment variables)
 - Sensitive data (passwords, tokens) must not appear in logs
 - Unhandled exceptions return safe Problem Details with a trace ID while full details remain in server logs
+- Authentication, authorization, validation, application, and rate-limit failures use centralized status mapping and localized safe responses
 - Docker secrets are injected from an ignored `.env` file; `.env.example` contains placeholders only
 - Admin/moderation capabilities are planned for inappropriate or fraudulent reports
 
