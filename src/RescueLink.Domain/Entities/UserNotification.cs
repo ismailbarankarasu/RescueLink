@@ -22,12 +22,7 @@ public sealed class UserNotification : BaseEntity
     {
     }
 
-    public static UserNotification Create(
-        Guid userId,
-        NotificationType type,
-        string title,
-        string message,
-        Guid? relatedEntityId = null)
+    public static UserNotification Create(Guid userId,NotificationType type,string title,string message, Guid? relatedEntityId = null)
     {
         if (userId == Guid.Empty)
         {

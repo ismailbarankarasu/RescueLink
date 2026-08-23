@@ -23,6 +23,11 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>ErrorMessages.resx</DependentUpon>
     </Compile>
+    <Compile Update="Localization\NotificationMessages.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>NotificationMessages.resx</DependentUpon>
+    </Compile>
     <Compile Update="Localization\ValidationMessages.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -34,6 +39,10 @@
     <EmbeddedResource Update="Localization\ErrorMessages.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Localization\NotificationMessages.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>NotificationMessages.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Update="Localization\ValidationMessages.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>

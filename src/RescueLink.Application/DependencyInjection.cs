@@ -1,10 +1,12 @@
 ﻿using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using RescueLink.Application.Common.Behaviors;
-using System.Reflection;
+using RescueLink.Application.Abstractions.Localization;
 using RescueLink.Application.Abstractions.Messaging;
+using RescueLink.Application.Common.Behaviors;
 using RescueLink.Application.Common.Events;
+using RescueLink.Application.Features.Notifications;
+using System.Reflection;
 
 namespace RescueLink.Application;
 
@@ -28,7 +30,7 @@ public static class DependencyInjection
 
 
         services.AddValidatorsFromAssembly(assembly);
-
+        services.AddSingleton<INotificationContentLocalizer, NotificationContentLocalizer>();
         services.AddAutoMapper(
             configuration =>
             {},
