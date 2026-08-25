@@ -50,6 +50,10 @@ internal sealed class MyPetReportReadService(
         report.Location.Long AS Longitude,
         report.CreatedAt,
         report.UpdatedAt,
+        report.CreatedAt,
+        report.UpdatedAt,
+        report.IsArchived,
+        report.ArchivedAt,
         primaryPhoto.StorageKey
             AS PrimaryPhotoStorageKey
     FROM dbo.PetReports AS report
@@ -131,7 +135,9 @@ internal sealed class MyPetReportReadService(
                 CreatedAt: row.CreatedAt,
                 UpdatedAt: row.UpdatedAt,
                 PrimaryPhotoStorageKey:
-                    row.PrimaryPhotoStorageKey))
+                    row.PrimaryPhotoStorageKey,
+                IsArchived: row.IsArchived,
+                ArchivedAt: row.ArchivedAt))
             .ToArray();
 
         return new PagedResult<MyPetReportListItemResponse>(
@@ -159,5 +165,8 @@ internal sealed class MyPetReportReadService(
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset? UpdatedAt { get; init; }
         public string? PrimaryPhotoStorageKey { get; init; }
+        public bool IsArchived { get; init; }
+
+        public DateTimeOffset? ArchivedAt { get; init; }
     }
 }

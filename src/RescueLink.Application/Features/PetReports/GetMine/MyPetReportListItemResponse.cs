@@ -18,4 +18,6 @@ public sealed record MyPetReportListItemResponse(
     double Longitude,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    string? PrimaryPhotoStorageKey);
+    string? PrimaryPhotoStorageKey,
+    bool IsArchived = false,
+    DateTimeOffset? ArchivedAt = null);

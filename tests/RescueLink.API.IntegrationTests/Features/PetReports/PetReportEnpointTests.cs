@@ -415,6 +415,25 @@ public sealed class PetReportEndpointTests
 
         archivedMineContainsReport.Should().BeTrue();
 
+        var archivedReport =
+            archivedMineJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .Single(item =>
+                    item.GetProperty("id").GetGuid() ==
+                     reportId);
+
+        archivedReport.GetProperty("isArchived")
+            .GetBoolean()
+            .Should()
+            .BeTrue();
+
+        archivedReport.GetProperty("archivedAt")
+            .ValueKind
+            .Should()
+            .NotBe(JsonValueKind.Null);
+
+
         // Act - Arşivlenen ilanı geri yükle
         var restoreResponse =
             await client.PatchAsync(
@@ -521,6 +540,24 @@ public sealed class PetReportEndpointTests
                     reportId);
 
         activeMineContainsRestoredReport.Should().BeTrue();
+
+        var restoredReport =
+    activeMineAfterRestoreJson.RootElement
+        .GetProperty("items")
+        .EnumerateArray()
+        .Single(item =>
+            item.GetProperty("id").GetGuid() ==
+            reportId);
+
+        restoredReport.GetProperty("isArchived")
+            .GetBoolean()
+            .Should()
+            .BeFalse();
+
+        restoredReport.GetProperty("archivedAt")
+            .ValueKind
+            .Should()
+            .Be(JsonValueKind.Null);
     }
 
     [Fact]
