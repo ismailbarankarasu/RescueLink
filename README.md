@@ -4,7 +4,7 @@
 
 RescueLink helps pet owners reunite with lost animals and enables people who find potentially lost pets to reach the right owners. Instead of scattering information across social media, WhatsApp groups, and local communities, RescueLink brings **Lost** and **Found** reports together in one system — with real coordinates, structured animal data, event-driven matching, and two-sided match confirmation.
 
-> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, global user profile management, English/Turkish/German request localization, localized validation and API error responses, localized JWT/rate-limit failures, culture-aware notification content, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, lifecycle management, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, in-app notifications, Docker support, and SQL Server-backed integration tests. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
+> **Current status:** The backend API foundation and core workflows are implemented: JWT authentication with refresh-token rotation and logout, authentication rate limiting, restricted frontend CORS, liveness/readiness health checks, global user profile management, English/Turkish/German request localization, localized validation and API error responses, localized JWT/rate-limit failures, culture-aware notification content, report creation and owner-specific listing, public filtering and pagination, report updates with automatic match recalculation, owner-only soft archive/restore lifecycle, archived-report listing, geospatial nearby search, secure photo management, event-driven smart matching, two-sided confirmation/rejection, secure counterpart contact disclosure after mutual confirmation, automatic resolution, in-app notifications, Docker support, and SQL Server-backed integration tests. Explainable scoring, realtime delivery, centralized monitoring, and production deployment remain on the roadmap.
 
 ---
 
@@ -89,6 +89,7 @@ Today, the API supports:
 - Per-IP rate limiting for authentication/token endpoints and configuration-based frontend CORS
 - Creating Lost/Found reports with coordinates
 - Resolving or cancelling reports with ownership checks
+- Soft-archiving and idempotently restoring owned reports without deleting historical data
 - Searching nearby active reports by distance
 - Managing report photos (upload, delete, set primary)
 - Automatically discovering and scoring potential Lost/Found matches
@@ -97,7 +98,7 @@ Today, the API supports:
 - Secure counterpart contact disclosure only to match participants after mutual confirmation
 - Automatically resolving both reports after mutual match confirmation
 - Public report discovery with filtering and pagination
-- Authenticated `mine` listing across Active, Resolved, and Cancelled reports
+- Authenticated `mine` listing across Active, Resolved, and Cancelled reports, including an `archivedOnly` filter
 - Owner-only report updates with automatic Suggested-match recalculation
 - In-app match suggestion notifications with unread filtering and read tracking
 - Structured Serilog request logging with trace/user correlation and safe global exception handling
@@ -127,9 +128,9 @@ Matching is triggered through Domain Events after a report is persisted or updat
 | **Geospatial nearby search** | SQL Server `geography`, spatial index, NetTopologySuite, and Dapper |
 | **Smart Matching Engine** | Event-driven Lost/Found candidate discovery with weighted scoring |
 | **Two-sided match decisions** | Both owners must confirm; either owner can reject a suggestion |
-| **Report lifecycle API** | Owner-only update, resolve, and cancel workflows |
+| **Report lifecycle API** | Owner-only update, resolve, cancel, soft archive, and idempotent restore workflows |
 | **Automatic match resolution** | Both reports become `Resolved` after both owners confirm |
-| **Report discovery** | Public filtering/pagination plus authenticated owner-only `mine` listing |
+| **Report discovery** | Public filtering/pagination plus authenticated owner-only `mine` listing with active/archive separation |
 | **Match recalculation** | Updating an active report removes stale suggestions and recalculates candidates |
 | **In-app notifications** | Suggested/confirmed match alerts, pagination, unread filtering/count, single read, and bulk read |
 | **Photo management** | Up to 5 photos; primary selection; delete; signature-validated local storage |
@@ -395,8 +396,9 @@ Central aggregate for both Lost and Found reports.
 | `EventDate` | When the pet was lost/found |
 | `Location` | `GeoLocation` (latitude/longitude) |
 | `Photos` | Up to 5 photos per report |
+| `IsArchived`, `ArchivedAt` | Soft-archive state and audit timestamp |
 
-Domain methods include `UpdateDetails()`, `Resolve()`, `Cancel()`, `AddPhoto()`, `SetPrimaryPhoto()`, and `RemovePhoto()`.
+Domain methods include `UpdateDetails()`, `Resolve()`, `Cancel()`, `Archive()`, `Restore()`, `AddPhoto()`, `SetPrimaryPhoto()`, and `RemovePhoto()`. Archived reports are protected from modification, excluded from normal EF Core and Dapper reads, and can be restored idempotently by their owner.
 
 ### PetReportPhoto
 
@@ -451,7 +453,7 @@ Profile validation follows global standards: E.164 phone numbers, two-letter ISO
 |--------|----------|------|-------------|
 | POST | `/api/pet-reports` | Required | Create Lost/Found report |
 | GET | `/api/pet-reports` | Anonymous | Public active report discovery with filters and pagination |
-| GET | `/api/pet-reports/mine` | Required | List the caller's reports with type/status filters |
+| GET | `/api/pet-reports/mine` | Required | List the caller's reports with type/status filters; use `archivedOnly=true` for the archive |
 | GET | `/api/pet-reports/{id}` | Anonymous | Get report details |
 | PUT | `/api/pet-reports/{id}` | Required | Update an owned active report and recalculate suggestions |
 | GET | `/api/pet-reports/nearby` | Anonymous | Nearby active reports |
@@ -460,6 +462,8 @@ Profile validation follows global standards: E.164 phone numbers, two-letter ISO
 | DELETE | `/api/pet-reports/{reportId}/photos/{photoId}` | Required | Delete photo |
 | PATCH | `/api/pet-reports/{id}/resolve` | Required | Mark active report as resolved |
 | PATCH | `/api/pet-reports/{id}/cancel` | Required | Cancel active report |
+| DELETE | `/api/pet-reports/{id}` | Required | Soft-archive an owned report (idempotent) |
+| PATCH | `/api/pet-reports/{id}/restore` | Required | Restore an owned archived report (idempotent) |
 | GET | `/api/pet-reports/{id}/matches` | Required | List owner-visible match suggestions |
 
 ### Pet Report Matches (`/api/pet-report-matches`)
@@ -571,6 +575,27 @@ Content-Type: application/json
 ```http
 GET /api/pet-reports/nearby?latitude=40.195&longitude=29.060&radiusMeters=5000&reportType=Lost&species=Cat
 ```
+
+### Archive and restore an owned report
+
+```http
+DELETE /api/pet-reports/{reportId}
+Authorization: Bearer {token}
+```
+
+```http
+PATCH /api/pet-reports/{reportId}/restore
+Authorization: Bearer {token}
+```
+
+List only archived reports:
+
+```http
+GET /api/pet-reports/mine?archivedOnly=true
+Authorization: Bearer {token}
+```
+
+Archive and restore are soft-delete operations: the database row is retained, `IsArchived`/`ArchivedAt` are updated, and ordinary discovery queries exclude archived reports.
 
 ### Upload Photo
 
@@ -759,8 +784,9 @@ Migrations include:
 - `UserNotifications` with Identity ownership, unread/read state, and supporting index
 - `RefreshTokens` with hashed values, expiry/revocation metadata, replacement chains, unique hash index, and SQL Server `rowversion`
 - Global Identity profile fields for phone, country, city, preferred language, and time zone
+- Pet report soft-archive fields (`IsArchived`, `ArchivedAt`) with EF Core global query filtering
 
-Nearby search, matching candidate discovery, match listing, public/owner report discovery, and notification listing use **Dapper** against the same SQL Server database for efficient read queries.
+Nearby search, matching candidate discovery, match listing, public/owner report discovery, and notification listing use **Dapper** against the same SQL Server database for efficient read queries. Dapper report queries explicitly apply archive predicates because EF Core global query filters do not affect raw SQL.
 
 ---
 
@@ -798,6 +824,7 @@ Examples of covered behavior:
 
 - PetReport creation and photo limits
 - Resolve/cancel domain rules
+- Soft archive/restore domain rules, modification guards, ownership, and idempotency
 - Nearby query validation
 - Authentication validators and login/refresh/logout handlers
 - Photo upload/delete/set-primary handlers
@@ -813,7 +840,7 @@ Examples of covered behavior:
 - Confirmed-match contact authorization and disclosure rules
 - Health liveness/readiness behavior against a real SQL Server container
 - Register/login, refresh-token rotation, logout, and authorization over HTTP
-- Report creation, retrieval, ownership protection, and spatial nearby ordering
+- Report creation, retrieval, ownership protection, spatial nearby ordering, archive filtering, and the complete archive/restore HTTP lifecycle
 - Global user profile update/retrieval, normalization, invalid-update protection, and localized validation responses
 - End-to-end notification localization through the real HTTP pipeline for English, Turkish, and German
 
@@ -844,7 +871,7 @@ Integration tests run against an isolated SQL Server 2022 container and apply th
 - [x] **English, Turkish, and German API localization** via `Accept-Language`
 - [x] **Centralized localized errors** for controllers, JWT middleware, validation, and rate limiting
 - [x] **Localized notification content** with persisted fallback text and HTTP integration coverage
-- [ ] **Delete/archive reports**
+- [x] **Soft archive and restore reports** with owner-only access, archived listing, global query filtering, and integration coverage
 - [ ] **Realtime/email/push delivery** (SignalR → email/push)
 - [ ] **Admin role** for moderation
 - [ ] **Azure Blob Storage** provider
@@ -867,6 +894,7 @@ Success will be measured not only by report volume, but by **how many lost pets 
 - Separate per-IP rate limits protect login/register and refresh/logout operations
 - Frontend CORS uses an explicit configuration allowlist rather than `AllowAnyOrigin`
 - Users can only manage their own reports, photos, match decisions, and notifications
+- Soft archive and restore operations require report ownership; archived reports are hidden from ordinary public and matching reads
 - Match details are visible only to the owner of the requested report
 - Counterpart contact information is disclosed only to match participants after mutual confirmation
 - Notification list/read operations are scoped to the authenticated user's ID
