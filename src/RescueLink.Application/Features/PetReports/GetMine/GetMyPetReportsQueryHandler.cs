@@ -37,13 +37,15 @@ public sealed class GetMyPetReportsQueryHandler
                     PetReportErrors.Unauthenticated);
         }
 
-        var result = await _myPetReportReadService.GetAsync(
-            userId: _currentUserService.UserId.Value,
-            page: request.Page,
-            pageSize: request.PageSize,
-            reportType: request.ReportType,
-            status: request.Status,
-            cancellationToken: cancellationToken);
+        var result =
+            await _myPetReportReadService.GetAsync(
+                userId: _currentUserService.UserId.Value,
+                page: request.Page,
+                pageSize: request.PageSize,
+                reportType: request.ReportType,
+                status: request.Status,
+                archivedOnly: request.ArchivedOnly,
+                cancellationToken: cancellationToken);
 
         return Result.Success(result);
     }

@@ -780,4 +780,68 @@ public class PetReportTests
         // Assert
         canAddPhoto.Should().BeFalse();
     }
+
+    [Fact]
+    public void Restore_ShouldRestoreArchivedReport()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        report.Archive();
+
+        var beforeRestore =
+            DateTimeOffset.UtcNow;
+
+        // Act
+        report.Restore();
+
+        // Assert
+        report.IsArchived.Should().BeFalse();
+        report.ArchivedAt.Should().BeNull();
+
+        report.UpdatedAt.Should()
+            .NotBeNull();
+
+        report.UpdatedAt.Should()
+            .BeOnOrAfter(beforeRestore);
+    }
+
+    [Fact]
+    public void Restore_ShouldBeIdempotent_WhenReportIsNotArchived()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        var updatedAtBeforeRestore =
+            report.UpdatedAt;
+
+        // Act
+        report.Restore();
+
+        // Assert
+        report.IsArchived.Should().BeFalse();
+        report.ArchivedAt.Should().BeNull();
+
+        report.UpdatedAt.Should()
+            .Be(updatedAtBeforeRestore);
+    }
+
+    [Fact]
+    public void Restore_ShouldAllowPhotoChangesAgain()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        report.Archive();
+        report.Restore();
+
+        // Act
+        var action = () =>
+            report.AddPhoto(
+                "uploads/pet-reports/restored.webp");
+
+        // Assert
+        action.Should().NotThrow();
+        report.CanAddPhoto.Should().BeTrue();
+    }
 }

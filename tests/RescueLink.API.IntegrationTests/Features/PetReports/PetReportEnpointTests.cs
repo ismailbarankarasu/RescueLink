@@ -359,6 +359,168 @@ public sealed class PetReportEndpointTests
                     reportId);
 
         containsArchivedReport.Should().BeFalse();
+
+        // Act - Normal kullanıcı ilanlarını getir
+        var activeMineResponse =
+            await client.GetAsync(
+                "/api/pet-reports/mine");
+
+        var activeMineBody =
+            await activeMineResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Arşivlenen ilan normal listede bulunmuyor
+        activeMineResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"active mine response: {activeMineBody}");
+
+        using var activeMineJson =
+            JsonDocument.Parse(activeMineBody);
+
+        var activeMineContainsArchivedReport =
+            activeMineJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .Any(item =>
+                    item.GetProperty("id").GetGuid() ==
+                    reportId);
+
+        activeMineContainsArchivedReport.Should().BeFalse();
+
+        // Act - Arşivlenmiş kullanıcı ilanlarını getir
+        var archivedMineResponse =
+            await client.GetAsync(
+                "/api/pet-reports/mine" +
+                "?archivedOnly=true");
+
+        var archivedMineBody =
+            await archivedMineResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Arşivlenen ilan arşiv listesinde bulunuyor
+        archivedMineResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"archived mine response: {archivedMineBody}");
+
+        using var archivedMineJson =
+            JsonDocument.Parse(archivedMineBody);
+
+        var archivedMineContainsReport =
+            archivedMineJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .Any(item =>
+                    item.GetProperty("id").GetGuid() ==
+                    reportId);
+
+        archivedMineContainsReport.Should().BeTrue();
+
+        // Act - Arşivlenen ilanı geri yükle
+        var restoreResponse =
+            await client.PatchAsync(
+                $"/api/pet-reports/{reportId}/restore",
+                content: null);
+
+        var restoreBody =
+            await restoreResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Restore başarılı
+        restoreResponse.StatusCode.Should().Be(
+            HttpStatusCode.NoContent,
+            $"restore response: {restoreBody}");
+
+        // Act - Aynı ilanı tekrar geri yükle
+        var secondRestoreResponse =
+            await client.PatchAsync(
+                $"/api/pet-reports/{reportId}/restore",
+                content: null);
+
+        // Assert - Restore işlemi idempotent
+        secondRestoreResponse.StatusCode.Should().Be(
+            HttpStatusCode.NoContent);
+
+        // Act - Geri yüklenen ilanı ID ile getir
+        var restoredGetResponse =
+            await client.GetAsync(
+                $"/api/pet-reports/{reportId}");
+
+        var restoredGetBody =
+            await restoredGetResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - İlan yeniden erişilebilir
+        restoredGetResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"restored get response: {restoredGetBody}");
+
+        using var restoredGetJson =
+            JsonDocument.Parse(restoredGetBody);
+
+        restoredGetJson.RootElement
+            .GetProperty("id")
+            .GetGuid()
+            .Should()
+            .Be(reportId);
+
+        // Act - Arşiv listesini tekrar getir
+        var archivedMineAfterRestoreResponse =
+            await client.GetAsync(
+                "/api/pet-reports/mine" +
+                "?archivedOnly=true");
+
+        var archivedMineAfterRestoreBody =
+            await archivedMineAfterRestoreResponse.Content
+                .ReadAsStringAsync();
+
+        archivedMineAfterRestoreResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"archived mine after restore response: " +
+            archivedMineAfterRestoreBody);
+
+        using var archivedMineAfterRestoreJson =
+            JsonDocument.Parse(
+                archivedMineAfterRestoreBody);
+
+        // Assert - Restore edilen ilan arşiv listesinden çıktı
+        var archiveStillContainsRestoredReport =
+            archivedMineAfterRestoreJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .Any(item =>
+                    item.GetProperty("id").GetGuid() ==
+                    reportId);
+
+        archiveStillContainsRestoredReport.Should().BeFalse();
+
+        // Act - Normal ilan listesini tekrar getir
+        var activeMineAfterRestoreResponse =
+            await client.GetAsync(
+                "/api/pet-reports/mine");
+
+        var activeMineAfterRestoreBody =
+            await activeMineAfterRestoreResponse.Content
+                .ReadAsStringAsync();
+
+        activeMineAfterRestoreResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"active mine after restore response: " +
+            activeMineAfterRestoreBody);
+
+        using var activeMineAfterRestoreJson =
+            JsonDocument.Parse(
+                activeMineAfterRestoreBody);
+
+        // Assert - Restore edilen ilan normal listeye döndü
+        var activeMineContainsRestoredReport =
+            activeMineAfterRestoreJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .Any(item =>
+                    item.GetProperty("id").GetGuid() ==
+                    reportId);
+
+        activeMineContainsRestoredReport.Should().BeTrue();
     }
 
     [Fact]

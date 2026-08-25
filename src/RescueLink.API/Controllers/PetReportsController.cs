@@ -17,6 +17,7 @@ using RescueLink.Application.Features.PetReports.Photos.Delete;
 using RescueLink.Application.Features.PetReports.Photos.SetPrimary;
 using RescueLink.Application.Features.PetReports.Photos.Upload;
 using RescueLink.Application.Features.PetReports.Resolve;
+using RescueLink.Application.Features.PetReports.Restore;
 using RescueLink.Application.Features.PetReports.Update;
 using RescueLink.Domain.Enums;
 
@@ -351,17 +352,19 @@ public sealed class PetReportsController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetMine(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 12,
-        [FromQuery] ReportType? reportType = null,
-        [FromQuery] ReportStatus? status = null,
-        CancellationToken cancellationToken = default)
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 12,
+    [FromQuery] ReportType? reportType = null,
+    [FromQuery] ReportStatus? status = null,
+    [FromQuery] bool archivedOnly = false,
+    CancellationToken cancellationToken = default)
     {
         var query = new GetMyPetReportsQuery(
             Page: page,
             PageSize: pageSize,
             ReportType: reportType,
-            Status: status);
+            Status: status,
+            ArchivedOnly: archivedOnly);
 
         var result = await _sender.Send(
             query,
@@ -427,6 +430,29 @@ public sealed class PetReportsController : ApiControllerBase
     {
         var result = await _sender.Send(
             new ArchivePetReportCommand(id),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleFailure(result.Error);
+        }
+
+        return NoContent();
+    }
+
+    [HttpPatch("{id:guid}/restore")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Restore(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new RestorePetReportCommand(id),
             cancellationToken);
 
         if (result.IsFailure)

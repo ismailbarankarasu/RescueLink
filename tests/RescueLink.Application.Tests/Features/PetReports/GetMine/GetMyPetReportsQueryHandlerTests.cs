@@ -21,15 +21,169 @@ public sealed class GetMyPetReportsQueryHandlerTests
     [Fact]
     public async Task Handle_ShouldReturnUserReports_WhenUserIsAuthenticated()
     {
+        // Arrange
         var userId = Guid.NewGuid();
 
         var query = new GetMyPetReportsQuery(
             Page: 2,
             PageSize: 10,
             ReportType: ReportType.Lost,
-            Status: ReportStatus.Active);
+            Status: ReportStatus.Active,
+            ArchivedOnly: false);
 
-        var item = new MyPetReportListItemResponse(
+        var item = CreateReportListItem();
+
+        var pagedResult =
+            new PagedResult<MyPetReportListItemResponse>(
+                Items: [item],
+                Page: 2,
+                PageSize: 10,
+                TotalCount: 11);
+
+        _currentUserServiceMock
+            .SetupGet(service => service.UserId)
+            .Returns(userId);
+
+        _readServiceMock
+            .Setup(service => service.GetAsync(
+                userId,
+                query.Page,
+                query.PageSize,
+                query.ReportType,
+                query.Status,
+                query.ArchivedOnly,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pagedResult);
+
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.Handle(
+            query,
+            CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+
+        result.Value.Should()
+            .BeEquivalentTo(pagedResult);
+
+        _readServiceMock.Verify(
+            service => service.GetAsync(
+                userId,
+                2,
+                10,
+                ReportType.Lost,
+                ReportStatus.Active,
+                false,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldPassArchivedFilter_WhenArchivedOnlyIsTrue()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+
+        var query = new GetMyPetReportsQuery(
+            Page: 1,
+            PageSize: 12,
+            ReportType: null,
+            Status: null,
+            ArchivedOnly: true);
+
+        var pagedResult =
+            new PagedResult<MyPetReportListItemResponse>(
+                Items: [CreateReportListItem()],
+                Page: 1,
+                PageSize: 12,
+                TotalCount: 1);
+
+        _currentUserServiceMock
+            .SetupGet(service => service.UserId)
+            .Returns(userId);
+
+        _readServiceMock
+            .Setup(service => service.GetAsync(
+                userId,
+                query.Page,
+                query.PageSize,
+                query.ReportType,
+                query.Status,
+                query.ArchivedOnly,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(pagedResult);
+
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.Handle(
+            query,
+            CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+
+        result.Value.Should()
+            .BeEquivalentTo(pagedResult);
+
+        _readServiceMock.Verify(
+            service => service.GetAsync(
+                userId,
+                1,
+                12,
+                null,
+                null,
+                true,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldFail_WhenUserIsUnauthenticated()
+    {
+        // Arrange
+        _currentUserServiceMock
+            .SetupGet(service => service.UserId)
+            .Returns((Guid?)null);
+
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.Handle(
+            new GetMyPetReportsQuery(),
+            CancellationToken.None);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+
+        result.Error.Code.Should().Be(
+            PetReportErrors.Unauthenticated.Code);
+
+        _readServiceMock.Verify(
+            service => service.GetAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<ReportType?>(),
+                It.IsAny<ReportStatus?>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private GetMyPetReportsQueryHandler CreateHandler()
+    {
+        return new GetMyPetReportsQueryHandler(
+            _readServiceMock.Object,
+            _currentUserServiceMock.Object);
+    }
+
+    private static MyPetReportListItemResponse
+        CreateReportListItem()
+    {
+        return new MyPetReportListItemResponse(
             Id: Guid.NewGuid(),
             ReportType: ReportType.Lost,
             Status: ReportStatus.Active,
@@ -40,87 +194,14 @@ public sealed class GetMyPetReportsQueryHandlerTests
             Breed: "Tekir",
             PrimaryColor: AnimalColor.White,
             SecondaryColor: AnimalColor.Gray,
-            EventDate: DateTimeOffset.UtcNow.AddHours(-2),
+            EventDate:
+                DateTimeOffset.UtcNow.AddHours(-2),
             Latitude: 40.2235,
             Longitude: 28.9730,
-            CreatedAt: DateTimeOffset.UtcNow.AddHours(-1),
+            CreatedAt:
+                DateTimeOffset.UtcNow.AddHours(-1),
             UpdatedAt: null,
             PrimaryPhotoStorageKey:
                 "uploads/pet-reports/test.webp");
-
-        var pagedResult =
-            new PagedResult<MyPetReportListItemResponse>(
-                Items: [item],
-                Page: 2,
-                PageSize: 10,
-                TotalCount: 11);
-
-        _currentUserServiceMock
-            .SetupGet(x => x.UserId)
-            .Returns(userId);
-
-        _readServiceMock
-            .Setup(x => x.GetAsync(
-                userId,
-                query.Page,
-                query.PageSize,
-                query.ReportType,
-                query.Status,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(pagedResult);
-
-        var handler = CreateHandler();
-
-        var result = await handler.Handle(
-            query,
-            CancellationToken.None);
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeEquivalentTo(pagedResult);
-
-        _readServiceMock.Verify(
-            x => x.GetAsync(
-                userId,
-                2,
-                10,
-                ReportType.Lost,
-                ReportStatus.Active,
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task Handle_ShouldFail_WhenUserIsUnauthenticated()
-    {
-        _currentUserServiceMock
-            .SetupGet(x => x.UserId)
-            .Returns((Guid?)null);
-
-        var handler = CreateHandler();
-
-        var result = await handler.Handle(
-            new GetMyPetReportsQuery(),
-            CancellationToken.None);
-
-        result.IsFailure.Should().BeTrue();
-        result.Error.Code.Should().Be(
-            PetReportErrors.Unauthenticated.Code);
-
-        _readServiceMock.Verify(
-            x => x.GetAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<int>(),
-                It.IsAny<int>(),
-                It.IsAny<ReportType?>(),
-                It.IsAny<ReportStatus?>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    private GetMyPetReportsQueryHandler CreateHandler()
-    {
-        return new GetMyPetReportsQueryHandler(
-            _readServiceMock.Object,
-            _currentUserServiceMock.Object);
     }
 }

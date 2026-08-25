@@ -374,4 +374,26 @@ public class PetReport : BaseEntity
                 "Archived pet reports cannot be modified.");
         }
     }
+
+    public void Restore()
+    {
+        if (!IsArchived)
+        {
+            return;
+        }
+
+        var restoredAt =
+            DateTimeOffset.UtcNow;
+
+        IsArchived = false;
+        ArchivedAt = null;
+        UpdatedAt = restoredAt;
+
+        if (Status == ReportStatus.Active)
+        {
+            RaiseDomainEvent(
+                new PetReportUpdatedDomainEvent(
+                    PetReportId: Id));
+        }
+    }
 }

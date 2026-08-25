@@ -12,5 +12,6 @@ public interface IMyPetReportReadService
         int pageSize,
         ReportType? reportType,
         ReportStatus? status,
+        bool archivedOnly,
         CancellationToken cancellationToken = default);
 }

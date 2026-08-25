@@ -17,68 +17,71 @@ internal sealed class MyPetReportReadService(
             int pageSize,
             ReportType? reportType,
             ReportStatus? status,
+            bool archivedOnly,
             CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT COUNT_BIG(1)
-            FROM dbo.PetReports AS report
-            WHERE report.UserId = @UserId
-            AND report.IsArchived = 0
-              AND (
-                    @ReportType IS NULL
-                    OR report.ReportType = @ReportType
-                  )
-              AND (
-                    @Status IS NULL
-                    OR report.Status = @Status
-                  );
+    SELECT COUNT_BIG(1)
+    FROM dbo.PetReports AS report
+    WHERE report.UserId = @UserId
+      AND report.IsArchived = @IsArchived
+      AND (
+            @ReportType IS NULL
+            OR report.ReportType = @ReportType
+          )
+      AND (
+            @Status IS NULL
+            OR report.Status = @Status
+          );
 
-            SELECT
-                report.Id,
-                report.ReportType,
-                report.Status,
-                report.Title,
-                report.Species,
-                report.Gender,
-                report.PetName,
-                report.Breed,
-                report.PrimaryColor,
-                report.SecondaryColor,
-                report.EventDate,
-                report.Location.Lat AS Latitude,
-                report.Location.Long AS Longitude,
-                report.CreatedAt,
-                report.UpdatedAt,
-                primaryPhoto.StorageKey
-                    AS PrimaryPhotoStorageKey
-            FROM dbo.PetReports AS report
-            OUTER APPLY
-            (
-                SELECT TOP (1)
-                    photo.StorageKey
-                FROM dbo.PetReportPhotos AS photo
-                WHERE photo.PetReportId = report.Id
-                ORDER BY
-                    photo.IsPrimary DESC,
-                    photo.DisplayOrder ASC
-            ) AS primaryPhoto
-            WHERE report.UserId = @UserId
-              AND (
-                    @ReportType IS NULL
-                    OR report.ReportType = @ReportType
-                  )
-              AND (
-                    @Status IS NULL
-                    OR report.Status = @Status
-                  )
-            ORDER BY report.CreatedAt DESC
-            OFFSET @Offset ROWS
-            FETCH NEXT @PageSize ROWS ONLY;
-            """;
+    SELECT
+        report.Id,
+        report.ReportType,
+        report.Status,
+        report.Title,
+        report.Species,
+        report.Gender,
+        report.PetName,
+        report.Breed,
+        report.PrimaryColor,
+        report.SecondaryColor,
+        report.EventDate,
+        report.Location.Lat AS Latitude,
+        report.Location.Long AS Longitude,
+        report.CreatedAt,
+        report.UpdatedAt,
+        primaryPhoto.StorageKey
+            AS PrimaryPhotoStorageKey
+    FROM dbo.PetReports AS report
+    OUTER APPLY
+    (
+        SELECT TOP (1)
+            photo.StorageKey
+        FROM dbo.PetReportPhotos AS photo
+        WHERE photo.PetReportId = report.Id
+        ORDER BY
+            photo.IsPrimary DESC,
+            photo.DisplayOrder ASC
+    ) AS primaryPhoto
+    WHERE report.UserId = @UserId
+      AND report.IsArchived = @IsArchived
+      AND (
+            @ReportType IS NULL
+            OR report.ReportType = @ReportType
+          )
+      AND (
+            @Status IS NULL
+            OR report.Status = @Status
+          )
+    ORDER BY report.CreatedAt DESC
+    OFFSET @Offset ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+    """;
 
         var parameters = new
         {
             UserId = userId,
+            IsArchived = archivedOnly,
 
             ReportType = reportType.HasValue
                 ? (int?)reportType.Value
