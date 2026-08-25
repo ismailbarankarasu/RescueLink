@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using RescueLink.Persistence.Context;
@@ -12,9 +13,11 @@ using RescueLink.Persistence.Context;
 namespace RescueLink.Persistence.Migrations
 {
     [DbContext(typeof(RescueLinkDbContext))]
-    partial class RescueLinkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260823172018_AddPetReportArchiveQueryFilter")]
+    partial class AddPetReportArchiveQueryFilter
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

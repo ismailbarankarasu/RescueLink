@@ -37,6 +37,7 @@ internal sealed class PetReportReadService(
                 pr.Location.STDistance(@Origin) AS DistanceMeters
             FROM dbo.PetReports AS pr
             WHERE pr.Status = @ActiveStatus
+              AND pr.IsArchived = 0
               AND (@ReportType IS NULL OR pr.ReportType = @ReportType)
               AND (@Species IS NULL OR pr.Species = @Species)
               AND pr.Location.STDistance(@Origin) <= @RadiusMeters

@@ -66,6 +66,7 @@ internal sealed class PetReportListReadService(
                     photo.DisplayOrder ASC
             ) AS primaryPhoto
             WHERE report.Status = @ActiveStatus
+            AND report.IsArchived = 0
               AND (
                     @ReportType IS NULL
                     OR report.ReportType = @ReportType

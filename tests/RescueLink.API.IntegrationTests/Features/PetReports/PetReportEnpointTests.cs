@@ -294,6 +294,71 @@ public sealed class PetReportEndpointTests
 
         firstDistance.Should()
             .BeLessThan(secondDistance);
+
+        // Act - İlanı arşivle
+        var archiveResponse =
+            await client.DeleteAsync(
+                $"/api/pet-reports/{reportId}");
+
+        var archiveBody =
+            await archiveResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Arşivleme başarılı
+        archiveResponse.StatusCode.Should().Be(
+            HttpStatusCode.NoContent,
+            $"archive response: {archiveBody}");
+
+        // Act - Aynı ilanı tekrar arşivle
+        var secondArchiveResponse =
+            await client.DeleteAsync(
+                $"/api/pet-reports/{reportId}");
+
+        // Assert - İşlem idempotent
+        secondArchiveResponse.StatusCode.Should().Be(
+            HttpStatusCode.NoContent);
+
+        // Act - Arşivlenmiş ilanı ID ile getir
+        var archivedGetResponse =
+            await client.GetAsync(
+                $"/api/pet-reports/{reportId}");
+
+        // Assert - Arşivlenen ilan artık görünmüyor
+        archivedGetResponse.StatusCode.Should().Be(
+            HttpStatusCode.NotFound);
+
+        // Act - Nearby sorgusunu tekrar çalıştır
+        var archivedNearbyResponse =
+            await client.GetAsync(
+                "/api/pet-reports/nearby" +
+                "?latitude=40.195" +
+                "&longitude=29.060" +
+                "&radiusMeters=1000" +
+                "&reportType=Lost" +
+                "&species=Cat" +
+                "&limit=20");
+
+        var archivedNearbyBody =
+            await archivedNearbyResponse.Content
+                .ReadAsStringAsync();
+
+        archivedNearbyResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"nearby response after archive: " +
+            archivedNearbyBody);
+
+        using var archivedNearbyJson =
+            JsonDocument.Parse(
+                archivedNearbyBody);
+
+        var containsArchivedReport =
+            archivedNearbyJson.RootElement
+                .EnumerateArray()
+                .Any(item =>
+                    item.GetProperty("id").GetGuid() ==
+                    reportId);
+
+        containsArchivedReport.Should().BeFalse();
     }
 
     [Fact]

@@ -4,7 +4,6 @@ using RescueLink.Domain.Events;
 using RescueLink.Domain.ValueObjects;
 
 namespace RescueLink.Domain.Entities;
-
 public class PetReport : BaseEntity
 {
     public Guid UserId { get; private set; }
@@ -22,7 +21,23 @@ public class PetReport : BaseEntity
     public AnimalColor PrimaryColor { get; private set; }
     public AnimalColor? SecondaryColor { get; private set; }
     public DateTimeOffset EventDate { get; private set; }
+    public bool IsArchived { get; private set; }
 
+    public DateTimeOffset? ArchivedAt{ get; private set; }
+    public void Archive()
+    {
+        if (IsArchived)
+        {
+            return;
+        }
+
+        var archivedAt = DateTimeOffset.UtcNow;
+
+        IsArchived = true;
+        ArchivedAt = archivedAt;
+        UpdatedAt = archivedAt;
+    }
+   
     public GeoLocation Location { get; private set; } = null!;
 
     public const int MaximumPhotoCount = 5;
@@ -32,8 +47,7 @@ public class PetReport : BaseEntity
     public IReadOnlyCollection<PetReportPhoto> Photos =>
         _photos.AsReadOnly();
 
-    public bool CanAddPhoto =>
-        _photos.Count < MaximumPhotoCount;
+    public bool CanAddPhoto => !IsArchived && _photos.Count < MaximumPhotoCount;
 
     private PetReport()
     {
@@ -79,7 +93,9 @@ public class PetReport : BaseEntity
             PrimaryColor = primaryColor,
             SecondaryColor = secondaryColor,
             EventDate = eventDate,
-            Location = location
+            Location = location,
+            IsArchived = false,
+            ArchivedAt = null
         };
 
         petReport.RaiseDomainEvent(
@@ -90,6 +106,7 @@ public class PetReport : BaseEntity
     }
 
     public void UpdateDetails(
+
         string title,
         string description,
         AnimalSpecies species,
@@ -101,6 +118,7 @@ public class PetReport : BaseEntity
         DateTimeOffset eventDate,
         GeoLocation location)
     {
+        EnsureNotArchived();
         if (Status != ReportStatus.Active)
         {
             throw new InvalidOperationException(
@@ -138,6 +156,7 @@ public class PetReport : BaseEntity
 
     public void Resolve()
     {
+        EnsureNotArchived();
         if (Status != ReportStatus.Active)
         {
             throw new InvalidOperationException(
@@ -150,6 +169,7 @@ public class PetReport : BaseEntity
 
     public void Cancel()
     {
+        EnsureNotArchived();
         if (Status != ReportStatus.Active)
         {
             throw new InvalidOperationException(
@@ -162,6 +182,7 @@ public class PetReport : BaseEntity
 
     public void AddPhoto(string storageKey)
     {
+        EnsureNotArchived();
         ArgumentException.ThrowIfNullOrWhiteSpace(
             storageKey);
 
@@ -197,6 +218,7 @@ public class PetReport : BaseEntity
 
     public void SetPrimaryPhoto(Guid photoId)
     {
+        EnsureNotArchived();
         var selectedPhoto =
             _photos.SingleOrDefault(
                 photo => photo.Id == photoId);
@@ -224,6 +246,7 @@ public class PetReport : BaseEntity
 
     public void RemovePhoto(Guid photoId)
     {
+        EnsureNotArchived();
         var photoToRemove =
             _photos.SingleOrDefault(
                 photo => photo.Id == photoId);
@@ -341,5 +364,14 @@ public class PetReport : BaseEntity
         return string.IsNullOrWhiteSpace(value)
             ? null
             : value.Trim();
+    }
+
+    private void EnsureNotArchived()
+    {
+        if (IsArchived)
+        {
+            throw new InvalidOperationException(
+                "Archived pet reports cannot be modified.");
+        }
     }
 }

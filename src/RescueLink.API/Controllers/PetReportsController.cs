@@ -5,6 +5,7 @@ using RescueLink.API.Common;
 using RescueLink.API.Contracts.PetReports;
 using RescueLink.Application.Common.Pagination;
 using RescueLink.Application.Features.PetReports;
+using RescueLink.Application.Features.PetReports.Archive;
 using RescueLink.Application.Features.PetReports.Cancel;
 using RescueLink.Application.Features.PetReports.Create;
 using RescueLink.Application.Features.PetReports.GetById;
@@ -411,5 +412,28 @@ public sealed class PetReportsController : ApiControllerBase
         }
 
         return HandleFailure(result.Error);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Archive(
+    Guid id,
+    CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new ArchivePetReportCommand(id),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleFailure(result.Error);
+        }
+
+        return NoContent();
     }
 }

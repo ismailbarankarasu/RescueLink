@@ -16,53 +16,61 @@ internal sealed class PetReportMatchReadService(
             CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT
-                match.Id AS MatchId,
-                counterpart.Id AS CounterpartReportId,
-                counterpart.ReportType,
-                counterpart.Title,
-                counterpart.Species,
-                counterpart.Gender,
-                counterpart.Breed,
-                counterpart.PrimaryColor,
-                counterpart.SecondaryColor,
-                counterpart.EventDate,
-                counterpart.Location.Lat AS Latitude,
-                counterpart.Location.Long AS Longitude,
-                match.Score,
-                match.DistanceMeters,
-                match.Status,
-                primaryPhoto.StorageKey
-                    AS PrimaryPhotoStorageKey
-            FROM dbo.PetReportMatches AS match
-            INNER JOIN dbo.PetReports AS counterpart
-                ON counterpart.Id =
-                    CASE
-                        WHEN match.LostReportId = @PetReportId
-                            THEN match.FoundReportId
-                        ELSE match.LostReportId
-                    END
-            OUTER APPLY
-            (
-                SELECT TOP (1)
-                    photo.StorageKey
-                FROM dbo.PetReportPhotos AS photo
-                WHERE photo.PetReportId = counterpart.Id
-                ORDER BY
-                    photo.IsPrimary DESC,
-                    photo.DisplayOrder ASC
-            ) AS primaryPhoto
-            WHERE
-                (
-                    match.LostReportId = @PetReportId
-                    OR match.FoundReportId = @PetReportId
-                )
-                AND match.Status IN
-                    (@SuggestedStatus, @ConfirmedStatus)
-            ORDER BY
-                match.Score DESC,
-                match.DistanceMeters ASC;
-            """;
+    SELECT
+        match.Id AS MatchId,
+        counterpart.Id AS CounterpartReportId,
+        counterpart.ReportType,
+        counterpart.Title,
+        counterpart.Species,
+        counterpart.Gender,
+        counterpart.Breed,
+        counterpart.PrimaryColor,
+        counterpart.SecondaryColor,
+        counterpart.EventDate,
+        counterpart.Location.Lat AS Latitude,
+        counterpart.Location.Long AS Longitude,
+        match.Score,
+        match.DistanceMeters,
+        match.Status,
+        primaryPhoto.StorageKey
+            AS PrimaryPhotoStorageKey
+    FROM dbo.PetReportMatches AS match
+    INNER JOIN dbo.PetReports AS counterpart
+        ON counterpart.Id =
+            CASE
+                WHEN match.LostReportId = @PetReportId
+                    THEN match.FoundReportId
+                ELSE match.LostReportId
+            END
+    OUTER APPLY
+    (
+        SELECT TOP (1)
+            photo.StorageKey
+        FROM dbo.PetReportPhotos AS photo
+        WHERE photo.PetReportId = counterpart.Id
+        ORDER BY
+            photo.IsPrimary DESC,
+            photo.DisplayOrder ASC
+    ) AS primaryPhoto
+    WHERE
+        (
+            match.LostReportId = @PetReportId
+            OR match.FoundReportId = @PetReportId
+        )
+        AND counterpart.IsArchived = 0
+        AND EXISTS
+        (
+            SELECT 1
+            FROM dbo.PetReports AS sourceReport
+            WHERE sourceReport.Id = @PetReportId
+              AND sourceReport.IsArchived = 0
+        )
+        AND match.Status IN
+            (@SuggestedStatus, @ConfirmedStatus)
+    ORDER BY
+        match.Score DESC,
+        match.DistanceMeters ASC;
+    """;
 
         var parameters = new
         {

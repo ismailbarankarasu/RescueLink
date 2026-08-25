@@ -25,4 +25,8 @@ public interface IPetReportRepository
     Task<IReadOnlyCollection<PetReport>> GetByIdsAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken cancellationToken = default);
+
+    Task<PetReport?> GetByIdIncludingArchivedAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
 }

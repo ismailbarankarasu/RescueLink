@@ -14,6 +14,8 @@ public sealed class PetReportConfiguration
 
         builder.ToTable("PetReports");
 
+        builder.HasQueryFilter(report => !report.IsArchived);
+
         builder.HasKey(report => report.Id);
 
         builder.Property(report => report.Id)
@@ -65,6 +67,12 @@ public sealed class PetReportConfiguration
             .IsRequired();
 
         builder.Property(report => report.UpdatedAt);
+
+        builder.Property(report => report.IsArchived)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(report => report.ArchivedAt);
 
         builder.HasMany(report => report.Photos)
             .WithOne()

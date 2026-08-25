@@ -633,4 +633,151 @@ public class PetReportTests
 
         domainEvent.PetReportId.Should().Be(report.Id);
     }
+
+    [Fact]
+    public void Archive_ShouldArchiveReport()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        var beforeArchive =
+            DateTimeOffset.UtcNow;
+
+        // Act
+        report.Archive();
+
+        // Assert
+        report.IsArchived.Should().BeTrue();
+
+        report.ArchivedAt.Should()
+            .NotBeNull();
+
+        report.ArchivedAt.Should()
+            .BeOnOrAfter(beforeArchive);
+
+        report.UpdatedAt.Should()
+            .NotBeNull();
+
+        report.UpdatedAt.Should()
+            .Be(report.ArchivedAt);
+    }
+
+    [Fact]
+    public void Archive_ShouldBeIdempotent_WhenAlreadyArchived()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        report.Archive();
+
+        var firstArchivedAt =
+            report.ArchivedAt;
+
+        var firstUpdatedAt =
+            report.UpdatedAt;
+
+        // Act
+        report.Archive();
+
+        // Assert
+        report.IsArchived.Should().BeTrue();
+
+        report.ArchivedAt.Should()
+            .Be(firstArchivedAt);
+
+        report.UpdatedAt.Should()
+            .Be(firstUpdatedAt);
+    }
+    private static PetReport CreateReport()
+    {
+        return PetReport.Create(
+            userId: Guid.NewGuid(),
+            reportType: ReportType.Lost,
+            title: "Kayıp kedi",
+            description:
+                "Gri renkli kedimiz kayboldu.",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.Gray,
+            secondaryColor: AnimalColor.White,
+            eventDate:
+                DateTimeOffset.UtcNow.AddHours(-1),
+            location: GeoLocation.Create(
+                latitude: 40.195,
+                longitude: 29.060));
+    }
+
+    [Fact]
+    public void ArchivedReport_ShouldRejectAllModifications()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        report.AddPhoto(
+            "uploads/pet-reports/photo.webp");
+
+        var photoId =
+            report.Photos.Single().Id;
+
+        report.Archive();
+
+        var newLocation =
+            GeoLocation.Create(
+                latitude: 40.200,
+                longitude: 29.100);
+
+        Action[] actions =
+        [
+            () => report.UpdateDetails(
+            title: "Güncellenmiş başlık",
+            description: "Güncellenmiş açıklama",
+            species: AnimalSpecies.Cat,
+            gender: AnimalGender.Female,
+            petName: "Luna",
+            breed: "Tekir",
+            primaryColor: AnimalColor.Gray,
+            secondaryColor: AnimalColor.White,
+            eventDate:
+                DateTimeOffset.UtcNow.AddHours(-2),
+            location: newLocation),
+
+        () => report.Resolve(),
+
+        () => report.Cancel(),
+
+        () => report.AddPhoto(
+            "uploads/pet-reports/second.webp"),
+
+        () => report.SetPrimaryPhoto(photoId),
+
+        () => report.RemovePhoto(photoId)
+        ];
+
+        // Act & Assert
+        foreach (var action in actions)
+        {
+            action.Should()
+                .Throw<InvalidOperationException>()
+                .WithMessage(
+                    "Archived pet reports cannot be modified.");
+        }
+    }
+
+    [Fact]
+    public void CanAddPhoto_ShouldBeFalse_WhenReportIsArchived()
+    {
+        // Arrange
+        var report = CreateReport();
+
+        report.Archive();
+
+        // Act
+        var canAddPhoto =
+            report.CanAddPhoto;
+
+        // Assert
+        canAddPhoto.Should().BeFalse();
+    }
 }

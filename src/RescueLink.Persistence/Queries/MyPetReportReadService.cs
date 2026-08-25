@@ -23,6 +23,7 @@ internal sealed class MyPetReportReadService(
             SELECT COUNT_BIG(1)
             FROM dbo.PetReports AS report
             WHERE report.UserId = @UserId
+            AND report.IsArchived = 0
               AND (
                     @ReportType IS NULL
                     OR report.ReportType = @ReportType

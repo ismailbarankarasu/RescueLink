@@ -32,6 +32,7 @@ internal sealed class PetReportMatchCandidateReadService(
             WHERE report.Id <> @SourceReportId
               AND report.UserId <> @SourceUserId
               AND report.Status = @ActiveStatus
+              AND report.IsArchived = 0
               AND report.ReportType = @CandidateReportType
               AND report.Species = @Species
               AND report.Location.STDistance(@Origin)

@@ -87,4 +87,15 @@ public sealed class PetReportRepository
             .Where(report => ids.Contains(report.Id))
             .ToArrayAsync(cancellationToken);
     }
+
+    public async Task<PetReport?> GetByIdIncludingArchivedAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.PetReports
+               .IgnoreQueryFilters()
+               .Include(report => report.Photos)
+               .SingleOrDefaultAsync(
+                   report => report.Id == id,
+                   cancellationToken);
+
+    }
 }
