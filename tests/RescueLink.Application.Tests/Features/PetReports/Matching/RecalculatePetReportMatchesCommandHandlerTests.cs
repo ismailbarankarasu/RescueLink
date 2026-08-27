@@ -2,12 +2,10 @@
 using Moq;
 using RescueLink.Application.Abstractions.Data;
 using RescueLink.Application.Abstractions.Persistence;
-using RescueLink.Application.Common.Events;
 using RescueLink.Application.Features.PetReports.Matching;
 using RescueLink.Application.Features.PetReports.Matching.Recalculate;
 using RescueLink.Domain.Entities;
 using RescueLink.Domain.Enums;
-using RescueLink.Domain.Events;
 using RescueLink.Domain.ValueObjects;
 namespace RescueLink.Application.Tests.Features.PetReports.Matching;
 
@@ -102,12 +100,6 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
 
         var handler = CreateHandler();
 
-        var notification =
-            new DomainEventNotification<
-                PetReportCreatedDomainEvent>(
-                new PetReportCreatedDomainEvent(
-                    sourceReport.Id));
-
         var command = new RecalculatePetReportMatchesCommand(sourceReport.Id);
         var result = await handler.Handle(
             command,
@@ -175,12 +167,6 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
             .ReturnsAsync([]);
 
         var handler = CreateHandler();
-
-        var notification =
-            new DomainEventNotification<
-                PetReportCreatedDomainEvent>(
-                new PetReportCreatedDomainEvent(
-                    sourceReport.Id));
 
         var command = new RecalculatePetReportMatchesCommand(sourceReport.Id);
 
@@ -256,12 +242,6 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
                 });
 
         var handler = CreateHandler();
-
-        var notification =
-            new DomainEventNotification<
-                PetReportCreatedDomainEvent>(
-                new PetReportCreatedDomainEvent(
-                    sourceReport.Id));
 
         var command = new RecalculatePetReportMatchesCommand(sourceReport.Id);
 

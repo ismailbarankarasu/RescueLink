@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using RescueLink.API.Common;
 using RescueLink.API.Contracts.PetReports;
 using RescueLink.Application.Common.Pagination;
-using RescueLink.Application.Features.PetReports;
 using RescueLink.Application.Features.PetReports.Archive;
 using RescueLink.Application.Features.PetReports.Cancel;
 using RescueLink.Application.Features.PetReports.Create;
