@@ -36,8 +36,12 @@ public class PetReport : BaseEntity
         IsArchived = true;
         ArchivedAt = archivedAt;
         UpdatedAt = archivedAt;
+
+        RaiseDomainEvent(
+            new PetReportUpdatedDomainEvent(
+                PetReportId: Id));
     }
-   
+
     public GeoLocation Location { get; private set; } = null!;
 
     public const int MaximumPhotoCount = 5;

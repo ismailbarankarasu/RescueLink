@@ -635,7 +635,7 @@ public class PetReportTests
     }
 
     [Fact]
-    public void Archive_ShouldArchiveReport()
+    public void Archive_ShouldArchiveReportAndRaiseUpdatedDomainEvent()
     {
         // Arrange
         var report = CreateReport();
@@ -650,16 +650,21 @@ public class PetReportTests
         report.IsArchived.Should().BeTrue();
 
         report.ArchivedAt.Should()
-            .NotBeNull();
-
-        report.ArchivedAt.Should()
-            .BeOnOrAfter(beforeArchive);
+            .NotBeNull()
+            .And.BeOnOrAfter(beforeArchive);
 
         report.UpdatedAt.Should()
-            .NotBeNull();
+            .NotBeNull()
+            .And.Be(report.ArchivedAt);
 
-        report.UpdatedAt.Should()
-            .Be(report.ArchivedAt);
+        var domainEvent = report.DomainEvents
+            .OfType<PetReportUpdatedDomainEvent>()
+            .Should()
+            .ContainSingle()
+            .Which;
+
+        domainEvent.PetReportId.Should()
+            .Be(report.Id);
     }
 
     [Fact]
@@ -676,6 +681,11 @@ public class PetReportTests
         var firstUpdatedAt =
             report.UpdatedAt;
 
+        var eventCountAfterFirstArchive =
+            report.DomainEvents
+                .OfType<PetReportUpdatedDomainEvent>()
+                .Count();
+
         // Act
         report.Archive();
 
@@ -687,6 +697,13 @@ public class PetReportTests
 
         report.UpdatedAt.Should()
             .Be(firstUpdatedAt);
+
+        eventCountAfterFirstArchive.Should().Be(1);
+
+        report.DomainEvents
+            .OfType<PetReportUpdatedDomainEvent>()
+            .Should()
+            .ContainSingle();
     }
     private static PetReport CreateReport()
     {
