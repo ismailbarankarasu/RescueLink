@@ -1,9 +1,10 @@
-﻿using System.Net;
+﻿using FluentAssertions;
+using Microsoft.Data.SqlClient;
+using RescueLink.API.IntegrationTests.Infrastructure;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using FluentAssertions;
-using RescueLink.API.IntegrationTests.Infrastructure;
 
 namespace RescueLink.API.IntegrationTests
     .Features.PetReports;
@@ -561,6 +562,107 @@ public sealed class PetReportEndpointTests
     }
 
     [Fact]
+    public async Task ArchiveAndRestore_ShouldRemoveAndRecreateSuggestedMatch()
+    {
+        // Arrange
+        await using var factory =
+            new RescueLinkWebApplicationFactory(
+                _sqlServerContainer.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        var lostOwnerToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "lost-owner");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                lostOwnerToken);
+
+        var lostReportId =
+            await CreatePetReportAsync(
+                client,
+                reportType: "Lost",
+                title: "Eşleşme testi kayıp kedi");
+
+        var foundOwnerToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "found-owner");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                foundOwnerToken);
+
+        var foundReportId =
+            await CreatePetReportAsync(
+                client,
+                reportType: "Found",
+                title: "Eşleşme testi bulunan kedi");
+
+        // Assert - İki ilan arasında önerilen eşleşme oluştu
+        var matchCountBeforeArchive =
+            await GetSuggestedMatchCountAsync(
+                lostReportId,
+                foundReportId);
+
+        matchCountBeforeArchive.Should().Be(1);
+
+        // Act - Kayıp ilanının sahibi olarak ilanı arşivle
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                lostOwnerToken);
+
+        var archiveResponse =
+            await client.DeleteAsync(
+                $"/api/pet-reports/{lostReportId}");
+
+        var archiveBody =
+            await archiveResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Arşivleme başarılı
+        archiveResponse.StatusCode.Should().Be(
+            HttpStatusCode.NoContent,
+            $"archive response: {archiveBody}");
+
+        // Assert - Suggested eşleşme kaldırıldı
+        var matchCountAfterArchive =
+            await GetSuggestedMatchCountAsync(
+                lostReportId,
+                foundReportId);
+
+        matchCountAfterArchive.Should().Be(0);
+
+        // Act - İlanı geri yükle
+        var restoreResponse =
+            await client.PatchAsync(
+                $"/api/pet-reports/{lostReportId}/restore",
+                content: null);
+
+        var restoreBody =
+            await restoreResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Restore başarılı
+        restoreResponse.StatusCode.Should().Be(
+            HttpStatusCode.NoContent,
+            $"restore response: {restoreBody}");
+
+        // Assert - Suggested eşleşme yeniden hesaplandı
+        var matchCountAfterRestore =
+            await GetSuggestedMatchCountAsync(
+                lostReportId,
+                foundReportId);
+
+        matchCountAfterRestore.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Create_ShouldReturnUnauthorized_WhenTokenIsMissing()
     {
         // Arrange
@@ -641,5 +743,145 @@ public sealed class PetReportEndpointTests
             .GetString()
             .Should()
             .Be("Hayvan ilanı bulunamadı.");
+    }
+
+    private static async Task<string>
+    RegisterAndGetAccessTokenAsync(
+        HttpClient client,
+        string emailPrefix)
+    {
+        var email =
+            $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
+
+        const string password = "Password123";
+
+        var registerResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/register",
+                new
+                {
+                    FirstName = "Integration",
+                    LastName = "Test",
+                    Email = email,
+                    Password = password,
+                    ConfirmPassword = password
+                });
+
+        var registerBody =
+            await registerResponse.Content
+                .ReadAsStringAsync();
+
+        registerResponse.StatusCode.Should().Be(
+            HttpStatusCode.Created,
+            $"register response: {registerBody}");
+
+        var loginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new
+                {
+                    Email = email,
+                    Password = password
+                });
+
+        var loginBody =
+            await loginResponse.Content
+                .ReadAsStringAsync();
+
+        loginResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"login response: {loginBody}");
+
+        using var loginJson =
+            JsonDocument.Parse(loginBody);
+
+        var accessToken =
+            loginJson.RootElement
+                .GetProperty("accessToken")
+                .GetString();
+
+        accessToken.Should()
+            .NotBeNullOrWhiteSpace();
+
+        return accessToken!;
+    }
+
+    private static async Task<Guid>
+        CreatePetReportAsync(
+            HttpClient client,
+            string reportType,
+            string title)
+    {
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/pet-reports",
+                new
+                {
+                    ReportType = reportType,
+                    Title = title,
+                    Description =
+                        "Archive ve restore eşleşme yaşam döngüsü testi.",
+                    Species = "Cat",
+                    Gender = "Female",
+                    PetName = "Luna",
+                    Breed = "Tekir",
+                    PrimaryColor = "Gray",
+                    SecondaryColor = "White",
+                    EventDate =
+                        DateTimeOffset.UtcNow.AddHours(-1),
+                    Latitude = 40.195,
+                    Longitude = 29.060
+                });
+
+        var responseBody =
+            await response.Content
+                .ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(
+            HttpStatusCode.Created,
+            $"create report response: {responseBody}");
+
+        using var responseJson =
+            JsonDocument.Parse(responseBody);
+
+        return responseJson.RootElement
+            .GetProperty("petReportId")
+            .GetGuid();
+    }
+
+    private async Task<long>
+        GetSuggestedMatchCountAsync(
+            Guid lostReportId,
+            Guid foundReportId)
+    {
+        const string sql = """
+        SELECT COUNT_BIG(1)
+        FROM dbo.PetReportMatches
+        WHERE LostReportId = @LostReportId
+          AND FoundReportId = @FoundReportId
+          AND Status = 1;
+        """;
+
+        await using var connection =
+            new SqlConnection(
+                _sqlServerContainer.ConnectionString);
+
+        await connection.OpenAsync();
+
+        await using var command =
+            new SqlCommand(sql, connection);
+
+        command.Parameters.AddWithValue(
+            "@LostReportId",
+            lostReportId);
+
+        command.Parameters.AddWithValue(
+            "@FoundReportId",
+            foundReportId);
+
+        var result =
+            await command.ExecuteScalarAsync();
+
+        return Convert.ToInt64(result);
     }
 }
