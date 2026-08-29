@@ -89,6 +89,12 @@ public sealed class IdentityService : IIdentityService
                 AuthenticationErrors.InvalidCredentials);
         }
 
+        if (await _userManager.IsLockedOutAsync(user))
+        {
+            return Result.Failure<AuthenticationResponse>(
+                AuthenticationErrors.InvalidCredentials);
+        }
+
         var isPasswordValid =
             await _userManager.CheckPasswordAsync(
                 user,
@@ -96,8 +102,15 @@ public sealed class IdentityService : IIdentityService
 
         if (!isPasswordValid)
         {
+            await _userManager.AccessFailedAsync(user);
+
             return Result.Failure<AuthenticationResponse>(
                 AuthenticationErrors.InvalidCredentials);
+        }
+
+        if (await _userManager.GetAccessFailedCountAsync(user) > 0)
+        {
+            await _userManager.ResetAccessFailedCountAsync(user);
         }
 
         var roles = await _userManager.GetRolesAsync(

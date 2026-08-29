@@ -96,6 +96,108 @@ public sealed class AuthenticationEndpointTests
     }
 
     [Fact]
+    public async Task Login_ShouldLockAccount_AfterFiveFailedAttempts()
+    {
+        // Arrange
+        await using var factory =
+            new RescueLinkWebApplicationFactory(
+                _sqlServerContainer.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        var email =
+            $"lockout-{Guid.NewGuid():N}@example.com";
+
+        const string correctPassword =
+            "Password123";
+
+        const string wrongPassword =
+            "WrongPassword123";
+
+        var registerResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/register",
+                new
+                {
+                    FirstName = "İsmail",
+                    LastName = "Karasu",
+                    Email = email,
+                    Password = correctPassword,
+                    ConfirmPassword = correctPassword
+                });
+
+        var registerBody =
+            await registerResponse.Content
+                .ReadAsStringAsync();
+
+        registerResponse.StatusCode.Should().Be(
+            HttpStatusCode.Created,
+            $"register response: {registerBody}");
+
+        // Act - Beş defa yanlış parola gönder
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            var failedLoginResponse =
+                await client.PostAsJsonAsync(
+                    "/api/auth/login",
+                    new
+                    {
+                        Email = email,
+                        Password = wrongPassword
+                    });
+
+            var failedLoginBody =
+                await failedLoginResponse.Content
+                    .ReadAsStringAsync();
+
+            // Assert - Her yanlış deneme reddedilir
+            failedLoginResponse.StatusCode.Should().Be(
+                HttpStatusCode.Unauthorized,
+                $"failed login attempt {attempt}: " +
+                failedLoginBody);
+
+            using var failedLoginJson =
+                JsonDocument.Parse(failedLoginBody);
+
+            failedLoginJson.RootElement
+                .GetProperty("code")
+                .GetString()
+                .Should()
+                .Be(
+                    "Authentication.InvalidCredentials");
+        }
+
+        // Act - Doğru parola ile giriş yapmayı dene
+        var lockedLoginResponse =
+            await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new
+                {
+                    Email = email,
+                    Password = correctPassword
+                });
+
+        var lockedLoginBody =
+            await lockedLoginResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Doğru parola olsa bile hesap kilitli
+        lockedLoginResponse.StatusCode.Should().Be(
+            HttpStatusCode.Unauthorized,
+            $"locked login response: {lockedLoginBody}");
+
+        using var lockedLoginJson =
+            JsonDocument.Parse(lockedLoginBody);
+
+        lockedLoginJson.RootElement
+            .GetProperty("code")
+            .GetString()
+            .Should()
+            .Be(
+                "Authentication.InvalidCredentials");
+    }
+
+    [Fact]
     public async Task Refresh_ShouldRotateToken_AndRejectOldToken()
     {
         // Arrange
