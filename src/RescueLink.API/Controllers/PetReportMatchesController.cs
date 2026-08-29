@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using RescueLink.API.Common;
 using RescueLink.Application.Features.PetReportMatches.Confirm;
 using RescueLink.Application.Features.PetReportMatches.GetContact;
+using RescueLink.Application.Features.PetReportMatches.GetMine;
 using RescueLink.Application.Features.PetReportMatches.Reject;
+using RescueLink.Domain.Enums;
 
 namespace RescueLink.API.Controllers;
 
@@ -92,6 +94,34 @@ public sealed class PetReportMatchesController
         var query =
             new GetMatchContactQuery(
                 matchId);
+
+        var result = await _sender.Send(
+            query,
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return HandleFailure(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpGet("mine")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMine(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 12,
+    [FromQuery] MatchStatus? status = null,
+    CancellationToken cancellationToken = default)
+    {
+        var query =
+            new GetMyPetReportMatchesQuery(
+                Page: page,
+                PageSize: pageSize,
+                Status: status);
 
         var result = await _sender.Send(
             query,

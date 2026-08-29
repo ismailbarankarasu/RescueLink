@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 
 namespace RescueLink.API.IntegrationTests.Infrastructure;
 
@@ -12,6 +13,27 @@ public sealed class RescueLinkWebApplicationFactory(
     {
         builder.UseEnvironment(
             "IntegrationTesting");
+
+        builder.ConfigureAppConfiguration(
+            (_, configurationBuilder) =>
+            {
+                configurationBuilder
+                    .AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            [
+                                "RateLimiting:" +
+                                "Authentication:" +
+                                "PermitLimit"
+                            ] = "1000",
+
+                            [
+                                "RateLimiting:" +
+                                "Token:" +
+                                "PermitLimit"
+                            ] = "1000"
+                        });
+            });
 
         builder.UseSetting(
             "ConnectionStrings:DefaultConnection",

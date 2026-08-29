@@ -12,9 +12,7 @@ builder.Host.AddApiSerilog();
 
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddScoped<
-    ICurrentUserService,
-    CurrentUserService>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 builder.Services.AddApplication();
 
@@ -31,7 +29,7 @@ builder.Services.AddApiServices();
 builder.Services.AddFrontendCors(
     builder.Configuration);
 
-builder.Services.AddApiRateLimiting();
+builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.Services.AddApiHealthChecks();
 builder.Services.AddApiLocalization();
 

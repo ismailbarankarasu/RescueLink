@@ -57,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IPetReportRepository, PetReportRepository>();
         services.AddScoped<IPetReportMatchReadService, PetReportMatchReadService>();
+        services.AddScoped<IMyPetReportMatchReadService, MyPetReportMatchReadService>();
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<RescueLinkDbContext>());
 

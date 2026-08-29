@@ -884,4 +884,223 @@ public sealed class PetReportEndpointTests
 
         return Convert.ToInt64(result);
     }
+
+    [Fact]
+    public async Task GetMyMatches_ShouldReturnMatchFromCurrentUsersPerspective()
+    {
+        // Arrange
+        await using var factory =
+            new RescueLinkWebApplicationFactory(
+                _sqlServerContainer.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        var lostOwnerToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "mine-lost-owner");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                lostOwnerToken);
+
+        var lostReportId =
+            await CreatePetReportAsync(
+                client,
+                reportType: "Lost",
+                title: "Mine testi kayıp kedi");
+
+        var foundOwnerToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "mine-found-owner");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                foundOwnerToken);
+
+        var foundReportId =
+            await CreatePetReportAsync(
+                client,
+                reportType: "Found",
+                title: "Mine testi bulunan kedi");
+
+        // Act - Kayıp ilan sahibinin eşleşmelerini getir
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                lostOwnerToken);
+
+        var lostOwnerResponse =
+            await client.GetAsync(
+                "/api/pet-report-matches/mine" +
+                "?status=Suggested" +
+                "&page=1" +
+                "&pageSize=10");
+
+        var lostOwnerBody =
+            await lostOwnerResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert
+        lostOwnerResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"lost owner matches response: {lostOwnerBody}");
+
+        using var lostOwnerJson =
+            JsonDocument.Parse(lostOwnerBody);
+
+        var lostOwnerItems =
+            lostOwnerJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .ToArray();
+
+        lostOwnerItems.Should().ContainSingle();
+
+        var lostOwnerMatch =
+            lostOwnerItems.Single();
+
+        lostOwnerMatch
+            .GetProperty("sourceReportId")
+            .GetGuid()
+            .Should()
+            .Be(lostReportId);
+
+        lostOwnerMatch
+            .GetProperty("sourceReportType")
+            .GetString()
+            .Should()
+            .Be("Lost");
+
+        lostOwnerMatch
+            .GetProperty("counterpartReportId")
+            .GetGuid()
+            .Should()
+            .Be(foundReportId);
+
+        lostOwnerMatch
+            .GetProperty("counterpartReportType")
+            .GetString()
+            .Should()
+            .Be("Found");
+
+        lostOwnerMatch
+            .GetProperty("status")
+            .GetString()
+            .Should()
+            .Be("Suggested");
+
+        lostOwnerMatch
+            .GetProperty("currentUserConfirmed")
+            .GetBoolean()
+            .Should()
+            .BeFalse();
+
+        lostOwnerMatch
+            .GetProperty("counterpartConfirmed")
+            .GetBoolean()
+            .Should()
+            .BeFalse();
+
+        // Act - Bulunan ilan sahibinin eşleşmelerini getir
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                foundOwnerToken);
+
+        var foundOwnerResponse =
+            await client.GetAsync(
+                "/api/pet-report-matches/mine" +
+                "?status=Suggested");
+
+        var foundOwnerBody =
+            await foundOwnerResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert
+        foundOwnerResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"found owner matches response: {foundOwnerBody}");
+
+        using var foundOwnerJson =
+            JsonDocument.Parse(foundOwnerBody);
+
+        var foundOwnerItems =
+            foundOwnerJson.RootElement
+                .GetProperty("items")
+                .EnumerateArray()
+                .ToArray();
+
+        foundOwnerItems.Should().ContainSingle();
+
+        var foundOwnerMatch =
+            foundOwnerItems.Single();
+
+        foundOwnerMatch
+            .GetProperty("sourceReportId")
+            .GetGuid()
+            .Should()
+            .Be(foundReportId);
+
+        foundOwnerMatch
+            .GetProperty("sourceReportType")
+            .GetString()
+            .Should()
+            .Be("Found");
+
+        foundOwnerMatch
+            .GetProperty("counterpartReportId")
+            .GetGuid()
+            .Should()
+            .Be(lostReportId);
+
+        foundOwnerMatch
+            .GetProperty("counterpartReportType")
+            .GetString()
+            .Should()
+            .Be("Lost");
+
+        // Arrange - Eşleşmeyle ilgisi olmayan üçüncü kullanıcı
+        var unrelatedUserToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "mine-unrelated-user");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                unrelatedUserToken);
+
+        // Act
+        var unrelatedResponse =
+            await client.GetAsync(
+                "/api/pet-report-matches/mine");
+
+        var unrelatedBody =
+            await unrelatedResponse.Content
+                .ReadAsStringAsync();
+
+        // Assert - Başka kullanıcıların eşleşmeleri sızmıyor
+        unrelatedResponse.StatusCode.Should().Be(
+            HttpStatusCode.OK,
+            $"unrelated matches response: {unrelatedBody}");
+
+        using var unrelatedJson =
+            JsonDocument.Parse(unrelatedBody);
+
+        unrelatedJson.RootElement
+            .GetProperty("items")
+            .GetArrayLength()
+            .Should()
+            .Be(0);
+
+        unrelatedJson.RootElement
+            .GetProperty("totalCount")
+            .GetInt32()
+            .Should()
+            .Be(0);
+    }
 }

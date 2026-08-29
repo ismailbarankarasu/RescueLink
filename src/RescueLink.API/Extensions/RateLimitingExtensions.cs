@@ -10,17 +10,17 @@ public static class RateLimitingExtensions
         "RateLimit.Exceeded",
         "Too many requests. Please try again later.");
 
-    public static IServiceCollection AddApiRateLimiting(
-        this IServiceCollection services)
+    public static IServiceCollection AddApiRateLimiting(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddRateLimiter(options =>
         {
-            options.RejectionStatusCode =
-                StatusCodes.Status429TooManyRequests;
+            var authenticationPermitLimit = configuration.GetValue<int?>("RateLimiting:Authentication:PermitLimit") ?? 5;
 
-            options.OnRejected = async (
-                context,
-                cancellationToken) =>
+            var tokenPermitLimit = configuration.GetValue<int?>("RateLimiting:Token:PermitLimit") ?? 10;
+
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.OnRejected = async (context, cancellationToken) =>
             {
                 var httpContext =
                     context.HttpContext;
@@ -36,8 +36,7 @@ public static class RateLimitingExtensions
 
                 var errorLocalizer =
                     httpContext.RequestServices
-                        .GetRequiredService<
-                            IErrorLocalizer>();
+                        .GetRequiredService<IErrorLocalizer>();
 
                 var localizedError =
                     errorLocalizer.Localize(
@@ -48,21 +47,22 @@ public static class RateLimitingExtensions
                     cancellationToken);
             };
 
-
             options.AddPolicy(
                 RateLimitPolicies.Authentication,
                 httpContext =>
                     RateLimitPartition
                         .GetFixedWindowLimiter(
                             partitionKey:
-                                GetPartitionKey(
-                                    httpContext),
+                                GetPartitionKey(httpContext),
                             factory: _ =>
                                 new FixedWindowRateLimiterOptions
                                 {
-                                    PermitLimit = 5,
+                                    PermitLimit =
+                                        authenticationPermitLimit,
+
                                     Window =
                                         TimeSpan.FromMinutes(1),
+
                                     QueueLimit = 0,
                                     AutoReplenishment = true
                                 }));
@@ -73,14 +73,16 @@ public static class RateLimitingExtensions
                     RateLimitPartition
                         .GetFixedWindowLimiter(
                             partitionKey:
-                                GetPartitionKey(
-                                    httpContext),
+                                GetPartitionKey(httpContext),
                             factory: _ =>
                                 new FixedWindowRateLimiterOptions
                                 {
-                                    PermitLimit = 10,
+                                    PermitLimit =
+                                        tokenPermitLimit,
+
                                     Window =
                                         TimeSpan.FromMinutes(1),
+
                                     QueueLimit = 0,
                                     AutoReplenishment = true
                                 }));
