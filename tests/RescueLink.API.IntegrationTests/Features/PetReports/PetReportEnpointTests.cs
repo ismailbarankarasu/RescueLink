@@ -604,12 +604,10 @@ public sealed class PetReportEndpointTests
                 title: "Eşleşme testi bulunan kedi");
 
         // Assert - İki ilan arasında önerilen eşleşme oluştu
-        var matchCountBeforeArchive =
-            await GetSuggestedMatchCountAsync(
-                lostReportId,
-                foundReportId);
-
-        matchCountBeforeArchive.Should().Be(1);
+        await WaitForSuggestedMatchCountAsync(
+            lostReportId,
+            foundReportId,
+            expectedCount: 1);
 
         // Act - Kayıp ilanının sahibi olarak ilanı arşivle
         client.DefaultRequestHeaders.Authorization =
@@ -631,12 +629,10 @@ public sealed class PetReportEndpointTests
             $"archive response: {archiveBody}");
 
         // Assert - Suggested eşleşme kaldırıldı
-        var matchCountAfterArchive =
-            await GetSuggestedMatchCountAsync(
-                lostReportId,
-                foundReportId);
-
-        matchCountAfterArchive.Should().Be(0);
+        await WaitForSuggestedMatchCountAsync(
+            lostReportId,
+            foundReportId,
+            expectedCount: 0);
 
         // Act - İlanı geri yükle
         var restoreResponse =
@@ -654,12 +650,10 @@ public sealed class PetReportEndpointTests
             $"restore response: {restoreBody}");
 
         // Assert - Suggested eşleşme yeniden hesaplandı
-        var matchCountAfterRestore =
-            await GetSuggestedMatchCountAsync(
-                lostReportId,
-                foundReportId);
-
-        matchCountAfterRestore.Should().Be(1);
+        await WaitForSuggestedMatchCountAsync(
+            lostReportId,
+            foundReportId,
+            expectedCount: 1);
     }
 
     [Fact]
@@ -927,6 +921,8 @@ public sealed class PetReportEndpointTests
                 reportType: "Found",
                 title: "Mine testi bulunan kedi");
 
+        await WaitForSuggestedMatchCountAsync(lostReportId, foundReportId, expectedCount: 1);
+
         // Act - Kayıp ilan sahibinin eşleşmelerini getir
         client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
@@ -1102,5 +1098,28 @@ public sealed class PetReportEndpointTests
             .GetInt32()
             .Should()
             .Be(0);
+    }
+
+    private async Task WaitForSuggestedMatchCountAsync(Guid lostReportId, Guid foundReportId, long expectedCount)
+    {
+        var timeoutAt = DateTimeOffset.UtcNow.AddSeconds(20);
+
+        while (DateTimeOffset.UtcNow < timeoutAt)
+        {
+            var currentCount = await GetSuggestedMatchCountAsync(lostReportId, foundReportId);
+
+            if (currentCount == expectedCount)
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        var finalCount = await GetSuggestedMatchCountAsync(lostReportId, foundReportId);
+
+        finalCount.Should().Be(expectedCount,
+            "the outbox processor should complete " +
+            "the matching operation within 20 seconds");
     }
 }

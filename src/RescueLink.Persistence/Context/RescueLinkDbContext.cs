@@ -6,6 +6,8 @@ using RescueLink.Application.Abstractions.Persistence;
 using RescueLink.Domain.Common;
 using RescueLink.Domain.Entities;
 using RescueLink.Persistence.Identity;
+using RescueLink.Persistence.Outbox;
+using System.Text.Json;
 
 namespace RescueLink.Persistence.Context;
 
@@ -16,14 +18,11 @@ public sealed class RescueLinkDbContext
         Guid>,
       IUnitOfWork
 {
-    private readonly IDomainEventDispatcher _domainEventDispatcher;
 
     public RescueLinkDbContext(
-        DbContextOptions<RescueLinkDbContext> options,
-        IDomainEventDispatcher domainEventDispatcher)
+        DbContextOptions<RescueLinkDbContext> options)
         : base(options)
     {
-        _domainEventDispatcher = domainEventDispatcher;
     }
     public DbSet<UserNotification> UserNotifications =>
         Set<UserNotification>();
@@ -36,36 +35,84 @@ public sealed class RescueLinkDbContext
         Set<PetReportMatch>();
     public DbSet<RefreshToken> RefreshTokens =>
         Set<RefreshToken>();
+    public DbSet<OutboxMessage> OutboxMessages =>
+        Set<OutboxMessage>();
 
     public override async Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default)
     {
-        var entitiesWithDomainEvents = ChangeTracker
-            .Entries<BaseEntity>()
-            .Select(entry => entry.Entity)
-            .Where(entity => entity.DomainEvents.Count > 0)
-            .ToArray();
+        var entitiesWithDomainEvents =
+            ChangeTracker
+                .Entries<BaseEntity>()
+                .Select(entry => entry.Entity)
+                .Where(entity =>
+                    entity.DomainEvents.Count > 0)
+                .ToArray();
 
-        var domainEvents = entitiesWithDomainEvents
-            .SelectMany(entity => entity.DomainEvents)
-            .ToArray();
+        var domainEvents =
+            entitiesWithDomainEvents
+                .SelectMany(entity =>
+                    entity.DomainEvents)
+                .ToArray();
 
-        var result = await base.SaveChangesAsync(
-            cancellationToken);
+        var outboxMessages =
+            domainEvents
+                .Select(domainEvent =>
+                {
+                    var eventType =
+                        domainEvent.GetType();
 
-        foreach (var entity in entitiesWithDomainEvents)
+                    var typeName =
+                        eventType.AssemblyQualifiedName
+                        ?? throw new InvalidOperationException(
+                            "Domain event type name " +
+                            "could not be determined.");
+
+                    var content =
+                        JsonSerializer.Serialize(
+                            domainEvent,
+                            eventType);
+
+                    return OutboxMessage.Create(
+                        occurredOnUtc:
+                            DateTimeOffset.UtcNow,
+                        type: typeName,
+                        content: content);
+                })
+                .ToArray();
+
+        if (outboxMessages.Length > 0)
         {
-            entity.ClearDomainEvents();
-        }
-
-        if (domainEvents.Length > 0)
-        {
-            await _domainEventDispatcher.DispatchAsync(
-                domainEvents,
+            await OutboxMessages.AddRangeAsync(
+                outboxMessages,
                 cancellationToken);
         }
 
-        return result;
+        try
+        {
+            var result =
+                await base.SaveChangesAsync(
+                    cancellationToken);
+
+            foreach (var entity in
+                     entitiesWithDomainEvents)
+            {
+                entity.ClearDomainEvents();
+            }
+
+            return result;
+        }
+        catch
+        {
+            foreach (var outboxMessage in
+                     outboxMessages)
+            {
+                Entry(outboxMessage).State =
+                    EntityState.Detached;
+            }
+
+            throw;
+        }
     }
 
     protected override void OnModelCreating(

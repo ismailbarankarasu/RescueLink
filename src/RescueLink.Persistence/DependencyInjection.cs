@@ -8,6 +8,7 @@ using RescueLink.Application.Abstractions.Persistence;
 using RescueLink.Persistence.Context;
 using RescueLink.Persistence.Data;
 using RescueLink.Persistence.Identity;
+using RescueLink.Persistence.Outbox;
 using RescueLink.Persistence.Queries;
 using RescueLink.Persistence.Repositories;
 namespace RescueLink.Persistence;
@@ -58,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IPetReportRepository, PetReportRepository>();
         services.AddScoped<IPetReportMatchReadService, PetReportMatchReadService>();
         services.AddScoped<IMyPetReportMatchReadService, MyPetReportMatchReadService>();
+        services.AddHostedService<OutboxMessageProcessor>();
         services.AddScoped<IUnitOfWork>(serviceProvider =>
             serviceProvider.GetRequiredService<RescueLinkDbContext>());
 
