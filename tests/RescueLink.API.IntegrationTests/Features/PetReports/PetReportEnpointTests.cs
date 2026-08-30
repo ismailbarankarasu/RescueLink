@@ -1,22 +1,23 @@
-﻿using FluentAssertions;
+﻿using Dapper;
+using FluentAssertions;
+using MediatR;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using RescueLink.API.IntegrationTests.Infrastructure;
+using RescueLink.Application.Common.Results;
+using RescueLink.Application.Features.PetReports.Matching.Recalculate;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace RescueLink.API.IntegrationTests
-    .Features.PetReports;
+namespace RescueLink.API.IntegrationTests.Features.PetReports;
 
-public sealed class PetReportEndpointTests
-    : IClassFixture<SqlServerContainerFixture>
+public sealed class PetReportEndpointTests: IClassFixture<SqlServerContainerFixture>
 {
-    private readonly SqlServerContainerFixture
-        _sqlServerContainer;
+    private readonly SqlServerContainerFixture _sqlServerContainer;
 
-    public PetReportEndpointTests(
-        SqlServerContainerFixture sqlServerContainer)
+    public PetReportEndpointTests(SqlServerContainerFixture sqlServerContainer)
     {
         _sqlServerContainer = sqlServerContainer;
     }
@@ -1100,6 +1101,132 @@ public sealed class PetReportEndpointTests
             .Be(0);
     }
 
+    [Fact]
+    public async Task
+    RecalculateConcurrently_ShouldCreateSingleMatch()
+    {
+        // Arrange
+        await using var factory =
+            new RescueLinkWebApplicationFactory(
+                _sqlServerContainer.ConnectionString);
+
+        using var client = factory.CreateClient();
+
+        var lostOwnerToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "concurrent-lost-owner");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                lostOwnerToken);
+
+        var lostReportId =
+            await CreatePetReportAsync(
+                client,
+                reportType: "Lost",
+                title:
+                    "Concurrency testi kayıp kedi");
+
+        var foundOwnerToken =
+            await RegisterAndGetAccessTokenAsync(
+                client,
+                "concurrent-found-owner");
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue(
+                "Bearer",
+                foundOwnerToken);
+
+        var foundReportId =
+            await CreatePetReportAsync(
+                client,
+                reportType: "Found",
+                title:
+                    "Concurrency testi bulunan kedi");
+
+        // Outbox tarafından ilk eşleşmenin
+        // oluşturulmasını bekle.
+        await WaitForSuggestedMatchCountAsync(
+            lostReportId,
+            foundReportId,
+            expectedCount: 1);
+
+        // Test edeceğimiz yarış durumunu temiz
+        // şekilde oluşturmak için mevcut eşleşmeyi sil.
+        await DeleteMatchAsync(
+            lostReportId,
+            foundReportId);
+
+        await WaitForSuggestedMatchCountAsync(
+            lostReportId,
+            foundReportId,
+            expectedCount: 0);
+
+        // Her scope farklı bir DbContext üretir.
+        await using var firstScope =
+            factory.Services.CreateAsyncScope();
+
+        await using var secondScope =
+            factory.Services.CreateAsyncScope();
+
+        var firstSender =
+            firstScope.ServiceProvider
+                .GetRequiredService<ISender>();
+
+        var secondSender =
+            secondScope.ServiceProvider
+                .GetRequiredService<ISender>();
+
+        var startGate =
+            new TaskCompletionSource(
+                TaskCreationOptions
+                    .RunContinuationsAsynchronously);
+
+        async Task<Result> RecalculateAsync(
+            ISender sender)
+        {
+            await startGate.Task;
+
+            return await sender.Send(
+                new RecalculatePetReportMatchesCommand(
+                    lostReportId));
+        }
+
+        var firstTask =
+            RecalculateAsync(firstSender);
+
+        var secondTask =
+            RecalculateAsync(secondSender);
+
+        // Act
+        startGate.SetResult();
+
+        var results =
+            await Task.WhenAll(
+                firstTask,
+                secondTask);
+
+        // Assert
+        results.Should().OnlyContain(
+            result => result.IsSuccess);
+
+        await WaitForSuggestedMatchCountAsync(
+            lostReportId,
+            foundReportId,
+            expectedCount: 1);
+
+        var finalCount =
+            await GetSuggestedMatchCountAsync(
+                lostReportId,
+                foundReportId);
+
+        finalCount.Should().Be(
+            1,
+            "concurrent recalculation must create " +
+            "only one match for the same report pair");
+    }
     private async Task WaitForSuggestedMatchCountAsync(Guid lostReportId, Guid foundReportId, long expectedCount)
     {
         var timeoutAt = DateTimeOffset.UtcNow.AddSeconds(20);
@@ -1121,5 +1248,28 @@ public sealed class PetReportEndpointTests
         finalCount.Should().Be(expectedCount,
             "the outbox processor should complete " +
             "the matching operation within 20 seconds");
+    }
+
+    private async Task DeleteMatchAsync(Guid lostReportId, Guid foundReportId)
+    {
+        const string sql = """
+        DELETE FROM dbo.PetReportMatches
+        WHERE LostReportId = @LostReportId
+          AND FoundReportId = @FoundReportId;
+        """;
+
+        await using var connection =
+            new SqlConnection(
+                _sqlServerContainer.ConnectionString);
+
+        var command = new CommandDefinition(
+            sql,
+            new
+            {
+                LostReportId = lostReportId,
+                FoundReportId = foundReportId
+            });
+
+        await connection.ExecuteAsync(command);
     }
 }

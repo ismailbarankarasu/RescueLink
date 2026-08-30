@@ -16,23 +16,15 @@ public sealed class RecalculatePetReportMatchesCommandHandler
 {
     private const int CandidateLimit = 50;
 
-    private readonly IPetReportRepository
-        _petReportRepository;
+    private readonly IPetReportRepository _petReportRepository;
 
-    private readonly IPetReportMatchRepository
-        _matchRepository;
+    private readonly IPetReportMatchRepository _matchRepository;
 
-    private readonly IPetReportMatchCandidateReadService
-        _candidateReadService;
+    private readonly IPetReportMatchCandidateReadService _candidateReadService;
 
-    private readonly IUnitOfWork
-        _unitOfWork;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public RecalculatePetReportMatchesCommandHandler(
-        IPetReportRepository petReportRepository,
-        IPetReportMatchRepository matchRepository,
-        IPetReportMatchCandidateReadService candidateReadService,
-        IUnitOfWork unitOfWork)
+    public RecalculatePetReportMatchesCommandHandler(IPetReportRepository petReportRepository, IPetReportMatchRepository matchRepository, IPetReportMatchCandidateReadService candidateReadService, IUnitOfWork unitOfWork)
     {
         _petReportRepository = petReportRepository;
         _matchRepository = matchRepository;
@@ -40,14 +32,13 @@ public sealed class RecalculatePetReportMatchesCommandHandler
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result> Handle(
-        RecalculatePetReportMatchesCommand request,
-        CancellationToken cancellationToken)
+    public async Task<Result> Handle(RecalculatePetReportMatchesCommand request, CancellationToken cancellationToken)
     {
         var sourceReport =
-            await _petReportRepository.GetByIdReadOnlyAsync(
-                request.PetReportId,
-                cancellationToken);
+            await _petReportRepository
+                .GetByIdReadOnlyAsync(
+                    request.PetReportId,
+                    cancellationToken);
 
         if (sourceReport is null ||
             sourceReport.Status != ReportStatus.Active)
@@ -61,18 +52,23 @@ public sealed class RecalculatePetReportMatchesCommandHandler
                 : ReportType.Lost;
 
         var candidateDistances =
-            await _candidateReadService.GetCandidatesAsync(
-                sourceReportId: sourceReport.Id,
-                sourceUserId: sourceReport.UserId,
-                candidateReportType: candidateReportType,
-                species: sourceReport.Species,
-                latitude: sourceReport.Location.Latitude,
-                longitude: sourceReport.Location.Longitude,
-                maximumDistanceMeters:
-                    PetReportMatchScoreCalculator
-                        .MaximumDistanceMeters,
-                limit: CandidateLimit,
-                cancellationToken: cancellationToken);
+            await _candidateReadService
+                .GetCandidatesAsync(
+                    sourceReportId: sourceReport.Id,
+                    sourceUserId: sourceReport.UserId,
+                    candidateReportType:
+                        candidateReportType,
+                    species: sourceReport.Species,
+                    latitude:
+                        sourceReport.Location.Latitude,
+                    longitude:
+                        sourceReport.Location.Longitude,
+                    maximumDistanceMeters:
+                        PetReportMatchScoreCalculator
+                            .MaximumDistanceMeters,
+                    limit: CandidateLimit,
+                    cancellationToken:
+                        cancellationToken);
 
         if (candidateDistances.Count == 0)
         {
@@ -85,82 +81,136 @@ public sealed class RecalculatePetReportMatchesCommandHandler
             .ToArray();
 
         var candidateReports =
-            await _petReportRepository.GetByIdsReadOnlyAsync(
-                candidateIds,
-                cancellationToken);
+            await _petReportRepository
+                .GetByIdsReadOnlyAsync(
+                    candidateIds,
+                    cancellationToken);
 
-        var existingCounterpartIds =
-            await _matchRepository
-                .GetExistingCounterpartIdsAsync(
-                    sourceReportId: sourceReport.Id,
-                    sourceReportType: sourceReport.ReportType,
-                    candidateReportIds: candidateIds,
-                    cancellationToken: cancellationToken);
+        if (candidateReports.Count == 0)
+        {
+            return Result.Success();
+        }
 
         var distancesByReportId = candidateDistances
             .ToDictionary(
                 candidate => candidate.PetReportId,
                 candidate => candidate.DistanceMeters);
+        var matchLockResources =
+            candidateReports
+                .Select(candidateReport =>
+                {
+                    var lostReportId =
+                        sourceReport.ReportType ==
+                        ReportType.Lost
+                            ? sourceReport.Id
+                            : candidateReport.Id;
 
-        var matches = new List<PetReportMatch>();
+                    var foundReportId =
+                        sourceReport.ReportType ==
+                        ReportType.Found
+                            ? sourceReport.Id
+                            : candidateReport.Id;
 
-        foreach (var candidateReport in candidateReports)
-        {
-            if (existingCounterpartIds.Contains(
-                    candidateReport.Id))
+                    return
+                        $"PetReportMatch:" +
+                        $"{lostReportId:N}:" +
+                        $"{foundReportId:N}";
+                })
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(
+                    resource => resource,
+                    StringComparer.Ordinal)
+                .ToArray();
+
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async transactionCancellationToken =>
             {
-                continue;
-            }
+                foreach (var lockResource in matchLockResources)
+                {
+                    await _unitOfWork
+                        .AcquireTransactionLockAsync(
+                            lockResource,
+                            transactionCancellationToken);
+                }
 
-            if (!distancesByReportId.TryGetValue(
-                    candidateReport.Id,
-                    out var distanceMeters))
-            {
-                continue;
-            }
+                var existingCounterpartIds =
+                    await _matchRepository
+                        .GetExistingCounterpartIdsAsync(
+                            sourceReportId:
+                                sourceReport.Id,
+                            sourceReportType:
+                                sourceReport.ReportType,
+                            candidateReportIds:
+                                candidateIds,
+                            cancellationToken:
+                                transactionCancellationToken);
 
-            var score =
-                PetReportMatchScoreCalculator.Calculate(
-                    sourceReport,
-                    candidateReport,
-                    distanceMeters);
+                var matches =
+                    new List<PetReportMatch>();
 
-            if (score <
-                PetReportMatchScoreCalculator
-                    .MinimumSuggestedScore)
-            {
-                continue;
-            }
+                foreach (var candidateReport in
+                         candidateReports)
+                {
+                    if (existingCounterpartIds.Contains(
+                            candidateReport.Id))
+                    {
+                        continue;
+                    }
 
-            var lostReportId =
-                sourceReport.ReportType == ReportType.Lost
-                    ? sourceReport.Id
-                    : candidateReport.Id;
+                    if (!distancesByReportId.TryGetValue(
+                            candidateReport.Id,
+                            out var distanceMeters))
+                    {
+                        continue;
+                    }
 
-            var foundReportId =
-                sourceReport.ReportType == ReportType.Found
-                    ? sourceReport.Id
-                    : candidateReport.Id;
+                    var score =
+                        PetReportMatchScoreCalculator
+                            .Calculate(
+                                sourceReport,
+                                candidateReport,
+                                distanceMeters);
 
-            var match = PetReportMatch.Create(
-                lostReportId: lostReportId,
-                foundReportId: foundReportId,
-                score: score,
-                distanceMeters: distanceMeters);
+                    if (score < PetReportMatchScoreCalculator.MinimumSuggestedScore)
+                    {
+                        continue;
+                    }
 
-            matches.Add(match);
-        }
+                    var lostReportId = sourceReport.ReportType == ReportType.Lost
+                            ? sourceReport.Id
+                            : candidateReport.Id;
 
-        if (matches.Count == 0)
-        {
-            return Result.Success();
-        }
+                    var foundReportId =
+                        sourceReport.ReportType ==
+                        ReportType.Found
+                            ? sourceReport.Id
+                            : candidateReport.Id;
 
-        await _matchRepository.AddRangeAsync(
-            matches,
-            cancellationToken);
+                    var match =
+                        PetReportMatch.Create(
+                            lostReportId:
+                                lostReportId,
+                            foundReportId:
+                                foundReportId,
+                            score: score,
+                            distanceMeters:
+                                distanceMeters);
 
-        await _unitOfWork.SaveChangesAsync(
+                    matches.Add(match);
+                }
+
+                if (matches.Count == 0)
+                {
+                    return;
+                }
+
+                await _matchRepository.AddRangeAsync(
+                    matches,
+                    transactionCancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(
+                    transactionCancellationToken);
+            },
             cancellationToken);
 
         return Result.Success();

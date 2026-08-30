@@ -22,11 +22,32 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
 
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
 
+    public RecalculatePetReportMatchesCommandHandlerTests()
+    {
+        _unitOfWorkMock
+            .Setup(unitOfWork =>
+                unitOfWork.ExecuteInTransactionAsync(
+                    It.IsAny<
+                        Func<CancellationToken, Task>>(),
+                    It.IsAny<CancellationToken>()))
+            .Returns(
+                (
+                    Func<CancellationToken, Task> operation,
+                    CancellationToken cancellationToken
+                ) => operation(cancellationToken));
+
+        _unitOfWorkMock
+            .Setup(unitOfWork =>
+                unitOfWork.AcquireTransactionLockAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+    }
+
     [Theory]
     [InlineData(ReportType.Lost)]
     [InlineData(ReportType.Found)]
-    public async Task Handle_ShouldCreateMatch_WhenCandidateIsSuitable(
-        ReportType sourceReportType)
+    public async Task Handle_ShouldCreateMatch_WhenCandidateIsSuitable(ReportType sourceReportType)
     {
         var candidateReportType =
             sourceReportType == ReportType.Lost
@@ -138,6 +159,14 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
             x => x.SaveChangesAsync(
                 It.IsAny<CancellationToken>()),
             Times.Once);
+
+        _unitOfWorkMock.Verify(
+            unitOfWork =>
+                unitOfWork.ExecuteInTransactionAsync(
+                    It.IsAny<
+                        Func<CancellationToken, Task>>(),
+                    It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -185,6 +214,14 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
         _unitOfWorkMock.Verify(
             x => x.SaveChangesAsync(
                 It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        _unitOfWorkMock.Verify(
+            unitOfWork =>
+                unitOfWork.ExecuteInTransactionAsync(
+                    It.IsAny<
+                        Func<CancellationToken, Task>>(),
+                    It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -260,6 +297,20 @@ public sealed class RecalculatePetReportMatchesCommandHandlerTests
         _unitOfWorkMock.Verify(
             x => x.SaveChangesAsync(
                 It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        _unitOfWorkMock.Verify(
+            unitOfWork =>
+                unitOfWork.ExecuteInTransactionAsync(
+                    It.IsAny<
+                        Func<CancellationToken, Task>>(),
+                    It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        _unitOfWorkMock.Verify(
+            unitOfWork =>
+                unitOfWork.SaveChangesAsync(
+                    It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
