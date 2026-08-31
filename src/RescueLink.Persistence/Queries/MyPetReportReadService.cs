@@ -50,8 +50,6 @@ internal sealed class MyPetReportReadService(
         report.Location.Long AS Longitude,
         report.CreatedAt,
         report.UpdatedAt,
-        report.CreatedAt,
-        report.UpdatedAt,
         report.IsArchived,
         report.ArchivedAt,
         primaryPhoto.StorageKey
