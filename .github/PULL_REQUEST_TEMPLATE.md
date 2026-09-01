@@ -102,7 +102,7 @@ None.
 
 ## Final checklist
 
-- [ ] I read and followed [CONTRIBUTING.md](../../CONTRIBUTING.md).
+- [ ] I read and followed [CONTRIBUTING.md](https://github.com/ismailbarankarasu/RescueLink/blob/master/CONTRIBUTING.md).
 - [ ] The confirmed issue scope and acceptance criteria are satisfied.
 - [ ] The branch is based on the latest `master`.
 - [ ] I reviewed the final diff.
