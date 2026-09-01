@@ -1,0 +1,170 @@
+name: Bug report
+description: Report a reproducible problem in RescueLink
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a problem. Please provide enough detail for someone else to reproduce and verify it.
+
+        Before submitting, search the existing issues and read [CONTRIBUTING.md](https://github.com/ismailbarankarasu/RescueLink/blob/master/CONTRIBUTING.md). Do not include secrets, access tokens, connection strings, real `.env` values, private addresses, phone numbers, or other sensitive information.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched the existing open and closed issues and did not find a duplicate.
+          required: true
+        - label: I read the contribution guide.
+          required: true
+        - label: I removed or redacted secrets and private data from this report.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Which part of RescueLink is affected?
+      options:
+        - Authentication and refresh tokens
+        - User profiles and localization
+        - Pet reports and lifecycle
+        - Geospatial search
+        - Matching and confirmation
+        - Notifications
+        - Photo upload and storage
+        - Persistence, EF Core, or Dapper
+        - API error handling or security
+        - Docker or local setup
+        - CI, build, or tests
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Clearly describe what is wrong and how it affects users or developers.
+      placeholder: A concise description of the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable sequence that reproduces the problem.
+      placeholder: |
+        1. Start the API with ...
+        2. Send a request to ...
+        3. Use this input ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal_example
+    attributes:
+      label: Minimal request or code example
+      description: Include a safe, minimal request, response, query, or code sample when applicable.
+      render: shell
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include status codes or safe error messages where useful.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: RescueLink version or commit
+      description: Provide the branch, tag, or commit SHA where the problem occurs.
+      placeholder: master / commit SHA
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet_version
+    attributes:
+      label: .NET SDK version
+      description: Run `dotnet --version`.
+      placeholder: 10.0.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: execution
+    attributes:
+      label: Execution method
+      options:
+        - Visual Studio or dotnet run
+        - Docker Compose
+        - Automated tests
+        - GitHub Actions
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and database
+      description: Include the OS and SQL Server variant when relevant.
+      placeholder: Windows 11 with SQL Server Express / Ubuntu with Docker
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Paste only the relevant portion. Redact tokens, credentials, connection strings, paths containing personal information, and private user data.
+      render: shell
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression information
+      description: Did this work previously? If known, identify the last working version or commit.
+      placeholder: This worked in ... / Unknown
+
+  - type: textarea
+    id: proposed_fix
+    attributes:
+      label: Possible cause or proposed fix
+      description: Optional. Share any investigation or implementation idea.
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to work on this?
+      options:
+        - "Yes, I can submit a pull request"
+        - "Maybe, with guidance"
+        - "No, I am only reporting the bug"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Community agreement
+      options:
+        - label: I will keep the discussion respectful and focused on the technical problem.
+          required: true

@@ -1,0 +1,154 @@
+name: Feature request
+description: Propose a focused improvement to RescueLink
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve RescueLink. Strong feature requests explain the user problem before proposing implementation details.
+
+        Search existing issues first and read [CONTRIBUTING.md](https://github.com/ismailbarankarasu/RescueLink/blob/master/CONTRIBUTING.md). Do not include secrets, private user data, or real credentials.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched the existing open and closed issues and did not find the same request.
+          required: true
+        - label: This request supports RescueLink's lost-and-found pet mission.
+          required: true
+        - label: I read the contribution guide.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature area
+      description: Which area would this feature primarily affect?
+      options:
+        - Authentication and user profiles
+        - Pet report creation or lifecycle
+        - Search, filters, or geospatial behavior
+        - Matching and confirmation
+        - Notifications
+        - Photos or file storage
+        - Privacy, safety, or moderation
+        - Localization
+        - API developer experience
+        - Docker, deployment, or observability
+        - Documentation or contributor experience
+        - New area
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or user need
+      description: Describe the real problem. Who experiences it, and why does it matter?
+      placeholder: When ..., users cannot ..., which causes ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful behavior that would solve the problem.
+      placeholder: RescueLink should ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_flow
+    attributes:
+      label: Example user flow
+      description: Walk through how a user or API client would use the feature.
+      placeholder: |
+        1. The user ...
+        2. RescueLink ...
+        3. The API returns or notifies ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: api_shape
+    attributes:
+      label: Possible API shape
+      description: Optional. Include safe example endpoints or request/response bodies. The final contract will be reviewed before implementation.
+      render: shell
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or other designs and why they are insufficient.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Suggested acceptance criteria
+      description: Provide observable, testable outcomes.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+        - [ ] Existing behavior remains compatible.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Expected technical impact
+      description: Select every area that may require changes.
+      options:
+        - label: Domain model or business rules
+        - label: Application commands, queries, handlers, or validators
+        - label: API contract or endpoint
+        - label: Database schema or migration
+        - label: Dapper query or geospatial behavior
+        - label: Authentication, authorization, or privacy
+        - label: Notifications or domain events
+        - label: Tests
+        - label: Documentation
+        - label: Unsure; design guidance is needed
+
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Security and privacy considerations
+      description: Consider ownership, authorization, precise locations, contact details, uploads, logs, and abuse risks.
+      placeholder: None identified / This feature must ensure ...
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: What should not be included in the first version?
+      placeholder: The first version should not include ...
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to work on this?
+      options:
+        - "Yes, after the design is confirmed"
+        - "Maybe, with guidance"
+        - "No, I am only proposing the idea"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: agreement
+    attributes:
+      label: Implementation agreement
+      options:
+        - label: I understand that the scope and architecture must be confirmed before implementation begins.
+          required: true
+        - label: I will not submit a pull request for this feature until the approach is approved.
+          required: true
