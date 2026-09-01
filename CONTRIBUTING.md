@@ -142,7 +142,7 @@ dotnet build RescueLink.slnx
 dotnet run --project src/RescueLink.API
 ```
 
-Development endpoints are documented in the [README](README.md#getting-started).
+Development endpoints are documented in the [README](README.md#15-getting-started).
 
 ## Architecture Rules
 
