@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and general discussion
+    url: https://github.com/ismailbarankarasu/RescueLink/discussions
+    about: Ask setup questions, share ideas, or discuss RescueLink before opening a scoped issue.
+  - name: Contribution guide
+    url: https://github.com/ismailbarankarasu/RescueLink/blob/master/CONTRIBUTING.md
+    about: Read the contribution workflow, architecture rules, testing requirements, and security guidance.
