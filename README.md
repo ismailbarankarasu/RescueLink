@@ -911,16 +911,19 @@ Success will be measured not only by report volume, but by **how many lost pets 
 
 ## 22. Contributing
 
-Contributions are welcome. Please:
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting.
 
-1. Fork the repository
-2. Create a feature branch from `master`
-3. Follow existing Clean Architecture and CQRS conventions
-4. Add or update unit tests for business rules
-5. Ensure `dotnet build` and `dotnet test` pass
-6. Open a pull request with a clear description
+The contributor guide explains how to:
 
-Keep controllers thin, put business logic in Domain/Application layers, and avoid embedding matching logic directly in HTTP handlers.
+- choose and claim an issue;
+- configure .NET 10, SQL Server, User Secrets, or Docker locally;
+- follow the Clean Architecture and CQRS boundaries;
+- create safe EF Core migrations;
+- run build, test, and formatting checks;
+- protect secrets and private data;
+- submit a focused pull request that references its issue.
+
+Please comment on an issue with your proposed approach and tests, then wait for confirmation before implementation.
 
 ---
 
