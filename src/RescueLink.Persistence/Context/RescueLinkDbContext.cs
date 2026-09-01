@@ -106,16 +106,25 @@ public sealed class RescueLinkDbContext : IdentityDbContext<ApplicationUser, Ide
     {
         ArgumentNullException.ThrowIfNull(operation);
 
-        await using var transaction = await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        if (Database.CurrentTransaction is not null)
+        {
+            await operation(cancellationToken);
+            return;
+        }
+
+        await using var transaction =
+            await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
         try
         {
             await operation(cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
         }
         catch
         {
             await transaction.RollbackAsync(cancellationToken);
+
             throw;
         }
     }

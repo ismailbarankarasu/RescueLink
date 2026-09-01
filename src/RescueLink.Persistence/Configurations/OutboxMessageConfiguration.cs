@@ -34,10 +34,15 @@ internal sealed class OutboxMessageConfiguration
         builder.Property(message => message.NextAttemptOnUtc)
             .IsRequired();
 
+        builder.Property(message => message.LockId);
+
+        builder.Property(message => message.LockedUntilUtc);
+
         builder.HasIndex(message => new
         {
             message.ProcessedOnUtc,
-            message.NextAttemptOnUtc
+            message.NextAttemptOnUtc,
+            message.LockedUntilUtc
         });
     }
 }
