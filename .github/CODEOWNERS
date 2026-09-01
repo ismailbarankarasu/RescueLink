@@ -1,0 +1,17 @@
+# Default owner for all repository changes.
+* @ismailbarankarasu
+
+# Project architecture and security-sensitive application areas.
+/src/RescueLink.Domain/ @ismailbarankarasu
+/src/RescueLink.Application/ @ismailbarankarasu
+/src/RescueLink.Persistence/ @ismailbarankarasu
+/src/RescueLink.Infrastructure/ @ismailbarankarasu
+/src/RescueLink.API/ @ismailbarankarasu
+
+# Tests, automation, repository policy, and documentation.
+/tests/ @ismailbarankarasu
+/.github/ @ismailbarankarasu
+/README.md @ismailbarankarasu
+/CONTRIBUTING.md @ismailbarankarasu
+/SECURITY.md @ismailbarankarasu
+/CODE_OF_CONDUCT.md @ismailbarankarasu
