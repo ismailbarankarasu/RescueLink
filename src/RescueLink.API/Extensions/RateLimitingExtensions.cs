@@ -1,26 +1,39 @@
-﻿using RescueLink.API.Common;
-using RescueLink.Application.Common.Results;
-using System.Globalization;
+﻿using System.Globalization;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
+using RescueLink.API.Common;
+using RescueLink.Application.Common.Results;
+
 namespace RescueLink.API.Extensions;
 
 public static class RateLimitingExtensions
 {
+    private const int DefaultAuthenticationPermitLimit = 5;
+    private const int DefaultTokenPermitLimit = 10;
+
+    private static readonly TimeSpan DefaultWindow =
+        TimeSpan.FromMinutes(1);
+
     private static readonly Error RateLimitExceeded = new(
         "RateLimit.Exceeded",
         "Too many requests. Please try again later.");
 
-    public static IServiceCollection AddApiRateLimiting(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApiRateLimiting(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
         services.AddRateLimiter(options =>
         {
-            var authenticationPermitLimit = configuration.GetValue<int?>("RateLimiting:Authentication:PermitLimit") ?? 5;
+            var authenticationPermitLimit =
+                 GetPositivePermitLimit(configuration, "RateLimiting:Authentication:PermitLimit", DefaultAuthenticationPermitLimit);
 
-            var tokenPermitLimit = configuration.GetValue<int?>("RateLimiting:Token:PermitLimit") ?? 10;
-
+            var tokenPermitLimit =
+                GetPositivePermitLimit(configuration, "RateLimiting:Token:PermitLimit", DefaultTokenPermitLimit);
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.OnRejected = async (context, cancellationToken) =>
+            options.OnRejected = async (
+                context,
+                cancellationToken) =>
             {
                 var httpContext =
                     context.HttpContext;
@@ -36,7 +49,8 @@ public static class RateLimitingExtensions
 
                 var errorLocalizer =
                     httpContext.RequestServices
-                        .GetRequiredService<IErrorLocalizer>();
+                        .GetRequiredService<
+                            IErrorLocalizer>();
 
                 var localizedError =
                     errorLocalizer.Localize(
@@ -53,19 +67,11 @@ public static class RateLimitingExtensions
                     RateLimitPartition
                         .GetFixedWindowLimiter(
                             partitionKey:
-                                GetPartitionKey(httpContext),
+                                GetIpPartitionKey(
+                                    httpContext),
                             factory: _ =>
-                                new FixedWindowRateLimiterOptions
-                                {
-                                    PermitLimit =
-                                        authenticationPermitLimit,
-
-                                    Window =
-                                        TimeSpan.FromMinutes(1),
-
-                                    QueueLimit = 0,
-                                    AutoReplenishment = true
-                                }));
+                                CreateLimiterOptions(
+                                    authenticationPermitLimit)));
 
             options.AddPolicy(
                 RateLimitPolicies.Token,
@@ -73,31 +79,82 @@ public static class RateLimitingExtensions
                     RateLimitPartition
                         .GetFixedWindowLimiter(
                             partitionKey:
-                                GetPartitionKey(httpContext),
+                                GetUserOrIpPartitionKey(
+                                    httpContext),
                             factory: _ =>
-                                new FixedWindowRateLimiterOptions
-                                {
-                                    PermitLimit =
-                                        tokenPermitLimit,
-
-                                    Window =
-                                        TimeSpan.FromMinutes(1),
-
-                                    QueueLimit = 0,
-                                    AutoReplenishment = true
-                                }));
+                                CreateLimiterOptions(
+                                    tokenPermitLimit)));
         });
 
         return services;
     }
 
-    private static string GetPartitionKey(
-        HttpContext httpContext)
+    private static FixedWindowRateLimiterOptions
+        CreateLimiterOptions(
+            int permitLimit)
     {
-        return httpContext.Connection
-                   .RemoteIpAddress?
-                   .ToString()
-               ?? "unknown";
+        return new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitLimit,
+            Window = DefaultWindow,
+            QueueLimit = 0,
+            AutoReplenishment = true
+        };
     }
 
+    private static string GetUserOrIpPartitionKey(
+        HttpContext httpContext)
+    {
+        if (httpContext.User.Identity?
+                .IsAuthenticated == true)
+        {
+            var userId =
+                httpContext.User.FindFirstValue(
+                    ClaimTypes.NameIdentifier)
+                ?? httpContext.User.FindFirstValue(
+                    "sub");
+
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                return $"user:{userId}";
+            }
+        }
+
+        return GetIpPartitionKey(
+            httpContext);
+    }
+
+    private static string GetIpPartitionKey(
+        HttpContext httpContext)
+    {
+        var remoteIpAddress =
+            httpContext.Connection.RemoteIpAddress;
+
+        if (remoteIpAddress is null)
+        {
+            return "ip:unknown";
+        }
+
+        if (remoteIpAddress.IsIPv4MappedToIPv6)
+        {
+            remoteIpAddress =
+                remoteIpAddress.MapToIPv4();
+        }
+
+        return $"ip:{remoteIpAddress}";
+    }
+
+    private static int GetPositivePermitLimit(
+        IConfiguration configuration,
+        string configurationKey,
+        int defaultValue)
+    {
+        var configuredValue =
+            configuration.GetValue<int?>(
+                configurationKey);
+
+        return configuredValue is > 0
+            ? configuredValue.Value
+            : defaultValue;
+    }
 }
