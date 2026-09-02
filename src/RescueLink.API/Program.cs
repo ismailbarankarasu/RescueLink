@@ -51,9 +51,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 app.UseCors(CorsPolicies.Frontend);
-app.UseRateLimiter();
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapApiHealthChecks();
